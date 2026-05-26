@@ -7825,6 +7825,7 @@ a.anchor-link {
 <h3 id="Important-interpretation-notes:">Important interpretation notes:<a class="anchor-link" href="#Important-interpretation-notes:">¶</a></h3><ul>
 <li>The S&amp;P 500/Shiller CSV and Yahoo Finance gold futures/proxy series are the two rubric-qualifying raw datasets with more than 500 observations each.</li>
 <li>The notebook first attempts the programmatic download/API steps, then uses the saved raw files as cache fallbacks if a live source is unavailable during review.</li>
+<li>The S&amp;P 500 raw download is SHA-256 checked before it replaces the committed cache, so upstream changes in the moving GitHub source do not silently alter this submitted analysis.</li>
 <li>The World Bank data is fetched directly for <code>country/USA</code>, not <code>country/all</code>, and is used as supplemental annual macro context for the merged analysis; it is not counted as one of the two &gt;500-observation rubric-qualifying datasets.</li>
 <li><code>GC=F</code> from Yahoo Finance is treated as a gold futures/proxy series, not physical spot gold.</li>
 <li>S&amp;P 500 <code>0.0</code> placeholders in unavailable-data fields are converted to <code>NaN</code> before annual averaging, including dividend, earnings, CPI, interest-rate, real-price, real-dividend, real-earnings, and PE10 fields.</li>
@@ -7838,7 +7839,7 @@ a.anchor-link {
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7847,6 +7848,7 @@ a.anchor-link {
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-ipython3"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">hashlib</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">sqlite3</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 
@@ -7866,6 +7868,8 @@ a.anchor-link {
 <span class="n">GOLD_MIN_DAYS_BY_YEAR</span> <span class="o">=</span> <span class="p">{</span><span class="n">START_YEAR</span><span class="p">:</span> <span class="mi">80</span><span class="p">}</span>
 <span class="n">DEFAULT_SP500_MIN_MONTHS</span> <span class="o">=</span> <span class="mi">12</span>
 <span class="n">DEFAULT_GOLD_MIN_DAYS</span> <span class="o">=</span> <span class="mi">200</span>
+<span class="n">SP500_SOURCE_URL</span> <span class="o">=</span> <span class="s2">"https://raw.githubusercontent.com/datasets/s-and-p-500/master/data/data.csv"</span>
+<span class="n">SP500_RAW_SHA256</span> <span class="o">=</span> <span class="s2">"3fe682b8dd593beb2548092d2a5e9b8844c2adc0f512da200dc5725d390ecfc9"</span>
 
 <span class="n">DATA_DIR</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="n">IMAGE_DIR</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
@@ -7873,6 +7877,19 @@ a.anchor-link {
 <span class="n">pd</span><span class="o">.</span><span class="n">set_option</span><span class="p">(</span><span class="s2">"display.max_columns"</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>
 <span class="n">sns</span><span class="o">.</span><span class="n">set_theme</span><span class="p">(</span><span class="n">style</span><span class="o">=</span><span class="s2">"whitegrid"</span><span class="p">)</span>
 </pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
+<pre>Matplotlib is building the font cache; this may take a moment.
+</pre>
 </div>
 </div>
 </div>
@@ -8060,7 +8077,7 @@ a.anchor-link {
 <p>Dataset variables and significance:</p>
 <ul>
 <li><code>Date</code>: Month of observation (string, format <code>YYYY-MM-DD</code>), used as the temporal index for aligning macroeconomic indicators.</li>
-<li><code>SP500</code>: Nominal close value of the S&amp;P 500 index (float), representing the benchmark U.S. equity market level.</li>
+<li><code>SP500</code>: Nominal monthly average S&amp;P 500 index level (float), representing the benchmark U.S. equity market level.</li>
 <li><code>Dividend</code>: S&amp;P 500 dividend value (float), reflecting cash payouts to investors and yield trends.</li>
 <li><code>Earnings</code>: S&amp;P 500 earnings (float), representing the fundamental profitability of corporate America.</li>
 <li><code>Consumer Price Index</code>: US consumer price index basis (float), used to compute real prices and adjust for inflation.</li>
@@ -8082,15 +8099,26 @@ a.anchor-link {
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Programmatically download the S&amp;P 500/Shiller raw dataset.</span>
-<span class="c1"># If the remote source rate-limits the request, use the saved raw file included with the project.</span>
-<span class="n">url_sp500</span> <span class="o">=</span> <span class="s2">"https://raw.githubusercontent.com/datasets/s-and-p-500/master/data/data.csv"</span>
+<span class="c1"># The upstream GitHub branch moves over time, so verify the expected raw-file hash before replacing the frozen cache.</span>
 <span class="n">raw_sp_path</span> <span class="o">=</span> <span class="n">DATA_DIR</span> <span class="o">/</span> <span class="s2">"sp500_shiller_raw.csv"</span>
 
 <span class="k">try</span><span class="p">:</span>
-    <span class="n">response_sp</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url_sp500</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+    <span class="n">response_sp</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">SP500_SOURCE_URL</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
     <span class="n">response_sp</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
-    <span class="n">raw_sp_path</span><span class="o">.</span><span class="n">write_bytes</span><span class="p">(</span><span class="n">response_sp</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
-<span class="k">except</span> <span class="n">requests</span><span class="o">.</span><span class="n">RequestException</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+    <span class="n">downloaded_sp_hash</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">(</span><span class="n">response_sp</span><span class="o">.</span><span class="n">content</span><span class="p">)</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">downloaded_sp_hash</span> <span class="o">==</span> <span class="n">SP500_RAW_SHA256</span><span class="p">:</span>
+        <span class="n">raw_sp_path</span><span class="o">.</span><span class="n">write_bytes</span><span class="p">(</span><span class="n">response_sp</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">raw_sp_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="nb">print</span><span class="p">(</span>
+            <span class="s2">"S&amp;P 500 download hash changed "</span>
+            <span class="sa">f</span><span class="s2">"(</span><span class="si">{</span><span class="n">downloaded_sp_hash</span><span class="si">}</span><span class="s2">); using frozen cached raw file at </span><span class="si">{</span><span class="n">raw_sp_path</span><span class="si">}</span><span class="s2">."</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">"S&amp;P 500 download hash changed and no frozen cache is available: "</span>
+            <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">downloaded_sp_hash</span><span class="si">}</span><span class="s2">"</span>
+        <span class="p">)</span>
+<span class="k">except</span> <span class="p">(</span><span class="n">requests</span><span class="o">.</span><span class="n">RequestException</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">)</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
     <span class="k">if</span> <span class="n">raw_sp_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
         <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"S&amp;P 500 download failed (</span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">); using cached raw file at </span><span class="si">{</span><span class="n">raw_sp_path</span><span class="si">}</span><span class="s2">."</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
@@ -9122,8 +9150,8 @@ Gold observations in first analysis year: 84
 <div class="jp-InputPrompt jp-InputArea-prompt">In [10]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Visual check: view the raw 'country' column containing dictionary objects</span>
-<span class="n">df_gdp_raw</span><span class="p">[[</span><span class="s1">'country'</span><span class="p">,</span> <span class="s1">'date'</span><span class="p">,</span> <span class="s1">'value'</span><span class="p">]]</span><span class="o">.</span><span class="n">head</span><span class="p">()</span>
+<div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Visual check: view the raw nested 'country' and 'indicator' columns</span>
+<span class="n">df_gdp_raw</span><span class="p">[[</span><span class="s1">'country'</span><span class="p">,</span> <span class="s1">'indicator'</span><span class="p">,</span> <span class="s1">'date'</span><span class="p">,</span> <span class="s1">'value'</span><span class="p">]]</span><span class="o">.</span><span class="n">head</span><span class="p">()</span>
 </pre></div>
 </div>
 </div>
@@ -9155,6 +9183,7 @@ Gold observations in first analysis year: 84
 <tr style="text-align: right;">
 <th></th>
 <th>country</th>
+<th>indicator</th>
 <th>date</th>
 <th>value</th>
 </tr>
@@ -9163,30 +9192,35 @@ Gold observations in first analysis year: 84
 <tr>
 <th>0</th>
 <td>{'id': 'US', 'value': 'United States'}</td>
+<td>{'id': 'NY.GDP.MKTP.KD.ZG', 'value': 'GDP grow...</td>
 <td>2023</td>
 <td>2.887556</td>
 </tr>
 <tr>
 <th>1</th>
 <td>{'id': 'US', 'value': 'United States'}</td>
+<td>{'id': 'NY.GDP.MKTP.KD.ZG', 'value': 'GDP grow...</td>
 <td>2022</td>
 <td>2.512375</td>
 </tr>
 <tr>
 <th>2</th>
 <td>{'id': 'US', 'value': 'United States'}</td>
+<td>{'id': 'NY.GDP.MKTP.KD.ZG', 'value': 'GDP grow...</td>
 <td>2021</td>
 <td>6.055053</td>
 </tr>
 <tr>
 <th>3</th>
 <td>{'id': 'US', 'value': 'United States'}</td>
+<td>{'id': 'NY.GDP.MKTP.KD.ZG', 'value': 'GDP grow...</td>
 <td>2020</td>
 <td>-2.163029</td>
 </tr>
 <tr>
 <th>4</th>
 <td>{'id': 'US', 'value': 'United States'}</td>
+<td>{'id': 'NY.GDP.MKTP.KD.ZG', 'value': 'GDP grow...</td>
 <td>2019</td>
 <td>2.583825</td>
 </tr>
@@ -9205,8 +9239,9 @@ Gold observations in first analysis year: 84
 <div class="jp-InputPrompt jp-InputArea-prompt">In [11]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Programmatic check: verify type of elements in the 'country' column</span>
+<div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Programmatic check: verify type of elements in the nested World Bank columns</span>
 <span class="nb">print</span><span class="p">(</span><span class="s2">"Type of country value:"</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="n">df_gdp_raw</span><span class="p">[</span><span class="s1">'country'</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Type of indicator value:"</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="n">df_gdp_raw</span><span class="p">[</span><span class="s1">'indicator'</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
 </pre></div>
 </div>
 </div>
@@ -9220,6 +9255,7 @@ Gold observations in first analysis year: 84
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
 <pre>Type of country value: &lt;class 'dict'&gt;
+Type of indicator value: &lt;class 'dict'&gt;
 </pre>
 </div>
 </div>
@@ -10370,8 +10406,12 @@ How do macroeconomic growth and inflation trends in the United States relate to 
 
 <span class="c1"># Compute and print numeric summary for audit trail</span>
 <span class="n">corr_val</span> <span class="o">=</span> <span class="n">df_merged</span><span class="p">[</span><span class="s1">'gdp_growth'</span><span class="p">]</span><span class="o">.</span><span class="n">corr</span><span class="p">(</span><span class="n">df_merged</span><span class="p">[</span><span class="s1">'PE10'</span><span class="p">])</span>
+<span class="n">corr_val_ex_2023</span> <span class="o">=</span> <span class="n">df_merged</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">df_merged</span><span class="p">[</span><span class="s2">"Year"</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">END_YEAR</span><span class="p">,</span> <span class="s1">'gdp_growth'</span><span class="p">]</span><span class="o">.</span><span class="n">corr</span><span class="p">(</span>
+    <span class="n">df_merged</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">df_merged</span><span class="p">[</span><span class="s2">"Year"</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">END_YEAR</span><span class="p">,</span> <span class="s1">'PE10'</span><span class="p">]</span>
+<span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="s2">"Summary Statistics:"</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  - Pearson correlation between GDP Growth and Shiller PE10: </span><span class="si">{</span><span class="n">corr_val</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  - Sensitivity excluding partial 2023 S&amp;P observation: </span><span class="si">{</span><span class="n">corr_val_ex_2023</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -10392,6 +10432,7 @@ How do macroeconomic growth and inflation trends in the United States relate to 
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
 <pre>Summary Statistics:
   - Pearson correlation between GDP Growth and Shiller PE10: 0.4987
+  - Sensitivity excluding partial 2023 S&amp;P observation: 0.4948
 </pre>
 </div>
 </div>
@@ -10405,7 +10446,7 @@ How do macroeconomic growth and inflation trends in the United States relate to 
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
 <p><em>Answer to research question:</em>
-The regression of Shiller PE10 vs. GDP growth shows a moderate positive in-sample relationship (Pearson r ≈ 0.50) across the 24 annual observations. This suggests that stronger growth years often coincided with higher valuation multiples in this sample, but PE10 is also shaped by longer-term earnings, interest-rate expectations, liquidity, and investor sentiment, so the visual should be read as exploratory rather than causal.</p>
+The regression of Shiller PE10 vs. GDP growth shows a moderate positive in-sample relationship (Pearson r ≈ 0.50) across the 24 annual observations. Excluding the partial 2023 S&amp;P observation leaves the correlation nearly unchanged (r ≈ 0.49). This suggests that stronger growth years often coincided with higher valuation multiples in this sample, but PE10 is also shaped by longer-term earnings, interest-rate expectations, liquidity, and investor sentiment, so the visual should be read as exploratory rather than causal.</p>
 </div>
 </div>
 </div>
@@ -10432,9 +10473,13 @@ The regression of Shiller PE10 vs. GDP growth shows a moderate positive in-sampl
 <span class="c1"># Compute and print numeric summary for audit trail</span>
 <span class="n">corr_inf_10y</span> <span class="o">=</span> <span class="n">df_merged</span><span class="p">[</span><span class="s1">'inflation_rate'</span><span class="p">]</span><span class="o">.</span><span class="n">corr</span><span class="p">(</span><span class="n">df_merged</span><span class="p">[</span><span class="s1">'Long Interest Rate'</span><span class="p">])</span>
 <span class="n">corr_inf_cape</span> <span class="o">=</span> <span class="n">df_merged</span><span class="p">[</span><span class="s1">'inflation_rate'</span><span class="p">]</span><span class="o">.</span><span class="n">corr</span><span class="p">(</span><span class="n">df_merged</span><span class="p">[</span><span class="s1">'cape_yield'</span><span class="p">])</span>
+<span class="n">df_no_partial_2023</span> <span class="o">=</span> <span class="n">df_merged</span><span class="p">[</span><span class="n">df_merged</span><span class="p">[</span><span class="s1">'Year'</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">END_YEAR</span><span class="p">]</span>
+<span class="n">corr_inf_10y_ex_2023</span> <span class="o">=</span> <span class="n">df_no_partial_2023</span><span class="p">[</span><span class="s1">'inflation_rate'</span><span class="p">]</span><span class="o">.</span><span class="n">corr</span><span class="p">(</span><span class="n">df_no_partial_2023</span><span class="p">[</span><span class="s1">'Long Interest Rate'</span><span class="p">])</span>
+<span class="n">corr_inf_cape_ex_2023</span> <span class="o">=</span> <span class="n">df_no_partial_2023</span><span class="p">[</span><span class="s1">'inflation_rate'</span><span class="p">]</span><span class="o">.</span><span class="n">corr</span><span class="p">(</span><span class="n">df_no_partial_2023</span><span class="p">[</span><span class="s1">'cape_yield'</span><span class="p">])</span>
 <span class="nb">print</span><span class="p">(</span><span class="s2">"Summary Statistics:"</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  - Correlation between CPI Inflation and 10Y Treasury Yield: </span><span class="si">{</span><span class="n">corr_inf_10y</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  - Correlation between CPI Inflation and CAPE Yield Proxy: </span><span class="si">{</span><span class="n">corr_inf_cape</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  - Sensitivity excluding partial 2023: inflation vs. 10Y = </span><span class="si">{</span><span class="n">corr_inf_10y_ex_2023</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">; inflation vs. CAPE yield = </span><span class="si">{</span><span class="n">corr_inf_cape_ex_2023</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -10456,6 +10501,7 @@ The regression of Shiller PE10 vs. GDP growth shows a moderate positive in-sampl
 <pre>Summary Statistics:
   - Correlation between CPI Inflation and 10Y Treasury Yield: 0.2137
   - Correlation between CPI Inflation and CAPE Yield Proxy: -0.4414
+  - Sensitivity excluding partial 2023: inflation vs. 10Y = 0.2011; inflation vs. CAPE yield = -0.4287
 </pre>
 </div>
 </div>
@@ -10469,7 +10515,7 @@ The regression of Shiller PE10 vs. GDP growth shows a moderate positive in-sampl
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
 <p><em>Answer to research question:</em>
-Inflation has a positive but modest relationship with the 10-year Treasury bond yield in this annual sample (r ≈ 0.21), while the CAPE-yield proxy has a moderate negative relationship with inflation (r ≈ -0.44). This means the data does not support a simple claim that all yield measures move closely with inflation; instead, long-term rates and equity valuation yields respond differently across the 2000-2023 period.</p>
+Inflation has a positive but modest relationship with the 10-year Treasury bond yield in this annual sample (r ≈ 0.21), while the CAPE-yield proxy has a moderate negative relationship with inflation (r ≈ -0.44). Excluding the partial 2023 S&amp;P observation leaves both relationships directionally unchanged. This means the data does not support a simple claim that all yield measures move closely with inflation; instead, long-term rates and equity valuation yields respond differently across the 2000-2023 period.</p>
 </div>
 </div>
 </div>
@@ -11503,7 +11549,6 @@ Number of outliers in annual average PE10: 1
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Programmatic multiple linear regression model (OLS via NumPy) with advanced diagnostics</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">scipy.stats</span><span class="w"> </span><span class="kn">import</span> <span class="n">t</span><span class="p">,</span> <span class="n">chi2</span>
 
 <span class="n">df_reg</span> <span class="o">=</span> <span class="n">df_merged</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="p">[</span><span class="s1">'PE10'</span><span class="p">,</span> <span class="s1">'gdp_growth'</span><span class="p">,</span> <span class="s1">'inflation_rate'</span><span class="p">,</span> <span class="s1">'Long Interest Rate'</span><span class="p">])</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
@@ -11577,6 +11622,18 @@ Number of outliers in annual average PE10: 1
 <span class="n">jb</span> <span class="o">=</span> <span class="p">(</span><span class="n">n</span> <span class="o">/</span> <span class="mf">6.0</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">skew</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">+</span> <span class="mf">0.25</span> <span class="o">*</span> <span class="p">((</span><span class="n">kurt</span> <span class="o">-</span> <span class="mf">3.0</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span>
 <span class="n">jb_p_value</span> <span class="o">=</span> <span class="n">chi2</span><span class="o">.</span><span class="n">sf</span><span class="p">(</span><span class="n">jb</span><span class="p">,</span> <span class="n">df</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
 
+<span class="c1"># Sensitivity check: refit the same model without the partial 2023 S&amp;P observation.</span>
+<span class="n">df_reg_ex_2023</span> <span class="o">=</span> <span class="n">df_reg</span><span class="p">[</span><span class="n">df_reg</span><span class="p">[</span><span class="s2">"Year"</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">END_YEAR</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+<span class="n">X_sens</span> <span class="o">=</span> <span class="n">df_reg_ex_2023</span><span class="p">[[</span><span class="s1">'gdp_growth'</span><span class="p">,</span> <span class="s1">'inflation_rate'</span><span class="p">,</span> <span class="s1">'Long Interest Rate'</span><span class="p">]]</span><span class="o">.</span><span class="n">values</span>
+<span class="n">y_sens</span> <span class="o">=</span> <span class="n">df_reg_ex_2023</span><span class="p">[</span><span class="s1">'PE10'</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+<span class="n">X_sens_const</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="n">X_sens</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">1</span><span class="p">)),</span> <span class="n">X_sens</span><span class="p">])</span>
+<span class="n">beta_sens</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">lstsq</span><span class="p">(</span><span class="n">X_sens_const</span><span class="p">,</span> <span class="n">y_sens</span><span class="p">,</span> <span class="n">rcond</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+<span class="n">e_sens</span> <span class="o">=</span> <span class="n">y_sens</span> <span class="o">-</span> <span class="n">X_sens_const</span> <span class="o">@</span> <span class="n">beta_sens</span>
+<span class="n">rss_sens</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">e_sens</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+<span class="n">tss_sens</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">y_sens</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">y_sens</span><span class="p">))</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+<span class="n">r2_sens</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="p">(</span><span class="n">rss_sens</span> <span class="o">/</span> <span class="n">tss_sens</span><span class="p">)</span>
+<span class="n">adj_r2_sens</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">r2_sens</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">y_sens</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">y_sens</span><span class="p">)</span> <span class="o">-</span> <span class="n">k</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+
 <span class="nb">print</span><span class="p">(</span><span class="s2">"===================================================================================================="</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="s2">"                              MULTIPLE LINEAR REGRESSION ANALYSIS (OLS)"</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="s2">"===================================================================================================="</span><span class="p">)</span>
@@ -11605,6 +11662,9 @@ Number of outliers in annual average PE10: 1
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  - GDP Growth VIF:             </span><span class="si">{</span><span class="n">vifs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2"> (VIF &lt; 5 indicates low multicollinearity)"</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  - Inflation Rate VIF:         </span><span class="si">{</span><span class="n">vifs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  - Long Interest Rate VIF:     </span><span class="si">{</span><span class="n">vifs</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Partial-year 2023 sensitivity check:"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  - Excluding 2023: n=</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">y_sens</span><span class="p">)</span><span class="si">}</span><span class="s2">, R-squared=</span><span class="si">{</span><span class="n">r2_sens</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">, Adjusted R-squared=</span><span class="si">{</span><span class="n">adj_r2_sens</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  - Excluding 2023 coefficients: intercept=</span><span class="si">{</span><span class="n">beta_sens</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">, GDP=</span><span class="si">{</span><span class="n">beta_sens</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">, inflation=</span><span class="si">{</span><span class="n">beta_sens</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">, 10Y=</span><span class="si">{</span><span class="n">beta_sens</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="s2">"===================================================================================================="</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -11639,6 +11699,9 @@ Variance Inflation Factors (VIF) for Collinearity Check:
   - GDP Growth VIF:             1.2094 (VIF &lt; 5 indicates low multicollinearity)
   - Inflation Rate VIF:         1.2396
   - Long Interest Rate VIF:     1.0526
+Partial-year 2023 sensitivity check:
+  - Excluding 2023: n=23, R-squared=0.3051, Adjusted R-squared=0.1954
+  - Excluding 2023 coefficients: intercept=21.6704, GDP=1.1546, inflation=0.8378, 10Y=0.2192
 ====================================================================================================
 </pre>
 </div>
@@ -11654,7 +11717,7 @@ Variance Inflation Factors (VIF) for Collinearity Check:
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
 <p><strong>Multiple Linear Regression Interpretation</strong>:</p>
 <ul>
-<li><strong>Goodness of Fit ($R^2 \approx 0.3111$, Adjusted $R^2 \approx 0.2078$)</strong>: The three macroeconomic factors collectively explain approximately 31.1% of annual PE10 variation in this 24-year sample. This is useful as an exploratory summary, but the small annual sample and persistent valuation levels mean it should not be interpreted as a causal valuation model.</li>
+<li><strong>Goodness of Fit ($R^2 \approx 0.3111$, Adjusted $R^2 \approx 0.2078$)</strong>: The three macroeconomic factors collectively explain approximately 31.1% of annual PE10 variation in this 24-year sample. Excluding the partial 2023 S&amp;P observation gives a similar fit ($R^2 \approx 0.3051$), so the regression summary is not driven by that final partial year. This is useful as an exploratory summary, but the small annual sample and persistent valuation levels mean it should not be interpreted as a causal valuation model.</li>
 <li><strong>GDP Growth ($\beta = 1.1546$, HAC $SE = 0.5468$, $p \approx 0.0475$)</strong>: Holding inflation and interest rates constant, a 1 percentage-point increase in annual GDP growth is associated with a 1.15 increase in PE10 in this fitted sample. The HAC p-value is near the 5% threshold, so this should be described as suggestive rather than definitive evidence.</li>
 <li><strong>Inflation Rate ($\beta = 0.8412$, HAC $SE = 0.2528$, $p \approx 0.0034$)</strong>: Higher annual inflation is positively associated with PE10 in this joint model, but this coefficient should be interpreted cautiously because the sample is short and concentrated in a modern low-to-moderate inflation era with only a few high-inflation years.</li>
 <li><strong>Long Interest Rate ($\beta = 0.2203$, HAC $SE = 1.3157$, $p \approx 0.8687$)</strong>: The coefficient is positive but statistically insignificant, so this model does not provide evidence that long-term interest rates independently explain PE10 after controlling for GDP growth and inflation.</li>

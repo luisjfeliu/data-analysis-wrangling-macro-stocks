@@ -15,6 +15,7 @@ issues found during review:
 
 
 import json
+import hashlib
 import sqlite3
 from pathlib import Path
 
@@ -36,6 +37,8 @@ GOLD_MIN_DAYS_BY_YEAR = {START_YEAR: 80}
 DEFAULT_SP500_MIN_MONTHS = 12
 DEFAULT_GOLD_MIN_DAYS = 200
 REGPLOT_SEED = 42
+SP500_SOURCE_URL = "https://raw.githubusercontent.com/datasets/s-and-p-500/master/data/data.csv"
+SP500_RAW_SHA256 = "3fe682b8dd593beb2548092d2a5e9b8844c2adc0f512da200dc5725d390ecfc9"
 
 DATA_DIR.mkdir(exist_ok=True)
 IMAGE_DIR.mkdir(exist_ok=True)
@@ -131,13 +134,24 @@ def first_matching_column(
 
 
 def load_sp500() -> pd.DataFrame:
-    url = "https://raw.githubusercontent.com/datasets/s-and-p-500/master/data/data.csv"
     raw_path = DATA_DIR / "sp500_shiller_raw.csv"
     try:
-        response = requests.get(url, timeout=30)
+        response = requests.get(SP500_SOURCE_URL, timeout=30)
         response.raise_for_status()
-        raw_path.write_bytes(response.content)
-    except requests.RequestException as exc:
+        downloaded_hash = hashlib.sha256(response.content).hexdigest()
+        if downloaded_hash == SP500_RAW_SHA256:
+            raw_path.write_bytes(response.content)
+        elif raw_path.exists():
+            print(
+                "S&P 500 download hash changed "
+                f"({downloaded_hash}); using frozen cached raw file at {raw_path}."
+            )
+        else:
+            raise ValueError(
+                "S&P 500 download hash changed and no frozen cache is available: "
+                f"{downloaded_hash}"
+            )
+    except (requests.RequestException, ValueError) as exc:
         if raw_path.exists():
             print(f"S&P 500 download failed ({exc}); using cached raw file at {raw_path}.")
         else:
@@ -698,6 +712,18 @@ def run_regression_model(df_merged: pd.DataFrame) -> None:
     jb = (n / 6.0) * (skew ** 2 + 0.25 * ((kurt - 3.0) ** 2))
     jb_p_value = chi2.sf(jb, df=2)
 
+    # Sensitivity check: refit the same model without the partial 2023 S&P observation.
+    df_reg_ex_2023 = df_reg[df_reg["Year"] < END_YEAR].copy()
+    X_sens = df_reg_ex_2023[['gdp_growth', 'inflation_rate', 'Long Interest Rate']].values
+    y_sens = df_reg_ex_2023['PE10'].values
+    X_sens_const = np.hstack([np.ones((X_sens.shape[0], 1)), X_sens])
+    beta_sens, _, _, _ = np.linalg.lstsq(X_sens_const, y_sens, rcond=None)
+    e_sens = y_sens - X_sens_const @ beta_sens
+    rss_sens = np.sum(e_sens ** 2)
+    tss_sens = np.sum((y_sens - np.mean(y_sens)) ** 2)
+    r2_sens = 1.0 - (rss_sens / tss_sens)
+    adj_r2_sens = 1.0 - (1.0 - r2_sens) * (len(y_sens) - 1) / (len(y_sens) - k - 1)
+
     print("====================================================================================================")
     print("                              MULTIPLE LINEAR REGRESSION ANALYSIS (OLS)")
     print("====================================================================================================")
@@ -726,6 +752,9 @@ def run_regression_model(df_merged: pd.DataFrame) -> None:
     print(f"  - GDP Growth VIF:             {vifs[0]:.4f} (VIF < 5 indicates low multicollinearity)")
     print(f"  - Inflation Rate VIF:         {vifs[1]:.4f}")
     print(f"  - Long Interest Rate VIF:     {vifs[2]:.4f}")
+    print("Partial-year 2023 sensitivity check:")
+    print(f"  - Excluding 2023: n={len(y_sens)}, R-squared={r2_sens:.4f}, Adjusted R-squared={adj_r2_sens:.4f}")
+    print(f"  - Excluding 2023 coefficients: intercept={beta_sens[0]:.4f}, GDP={beta_sens[1]:.4f}, inflation={beta_sens[2]:.4f}, 10Y={beta_sens[3]:.4f}")
     print("====================================================================================================")
 
 

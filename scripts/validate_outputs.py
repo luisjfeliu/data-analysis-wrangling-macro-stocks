@@ -8,6 +8,7 @@ stale database tables.
 
 
 import json
+import hashlib
 import sqlite3
 from pathlib import Path
 
@@ -23,6 +24,7 @@ SP500_MIN_MONTHS_BY_YEAR = {END_YEAR: 9}
 GOLD_MIN_DAYS_BY_YEAR = {START_YEAR: 80}
 DEFAULT_SP500_MIN_MONTHS = 12
 DEFAULT_GOLD_MIN_DAYS = 200
+SP500_RAW_SHA256 = "3fe682b8dd593beb2548092d2a5e9b8844c2adc0f512da200dc5725d390ecfc9"
 SP500_EXPECTED_2023_NON_NULL_COUNTS = {
     "SP500": 9,
     "Dividend": 6,
@@ -121,6 +123,16 @@ def require_yearly_coverage(
 
 
 def validate_sp500_clean() -> None:
+    raw_path = DATA_DIR / "sp500_shiller_raw.csv"
+    actual_hash = hashlib.sha256(raw_path.read_bytes()).hexdigest()
+    require(
+        actual_hash == SP500_RAW_SHA256,
+        (
+            "S&P 500 raw cache hash changed; update the frozen source hash "
+            "only after reviewing upstream data changes"
+        ),
+    )
+
     path = DATA_DIR / "sp500_shiller_clean.csv"
     df = pd.read_csv(path)
 
