@@ -20,13 +20,44 @@ import requests
 import seaborn as sns
 import yfinance as yf
 
-DATA_DIR = Path("data")
-IMAGE_DIR = Path("images")
+ROOT = Path(__file__).resolve().parents[1]
+DATA_DIR = ROOT / "data"
+IMAGE_DIR = ROOT / "images"
 START_YEAR = 2000
 END_YEAR = 2023
+EXPECTED_YEARS = set(range(START_YEAR, END_YEAR + 1))
+SP500_MIN_MONTHS_BY_YEAR = {END_YEAR: 9}
+GOLD_MIN_DAYS_BY_YEAR = {START_YEAR: 80}
+DEFAULT_SP500_MIN_MONTHS = 12
+DEFAULT_GOLD_MIN_DAYS = 200
 
 DATA_DIR.mkdir(exist_ok=True)
 IMAGE_DIR.mkdir(exist_ok=True)
+
+
+def assert_expected_years(years: pd.Series, label: str) -> None:
+    actual_years = set(years.dropna().astype(int))
+    missing_years = EXPECTED_YEARS - actual_years
+    extra_years = actual_years - EXPECTED_YEARS
+    assert not missing_years, f"{label} is missing years: {sorted(missing_years)}"
+    assert not extra_years, f"{label} has unexpected years: {sorted(extra_years)}"
+
+
+def assert_yearly_coverage(
+    dates: pd.Series,
+    label: str,
+    *,
+    default_min_count: int,
+    min_count_by_year: dict[int, int],
+) -> None:
+    counts = dates.dt.year.value_counts().sort_index()
+    for year in range(START_YEAR, END_YEAR + 1):
+        min_count = min_count_by_year.get(year, default_min_count)
+        actual_count = int(counts.get(year, 0))
+        assert actual_count >= min_count, (
+            f"{label} has thin coverage for {year}: "
+            f"{actual_count} observations, expected at least {min_count}"
+        )
 
 
 def fetch_world_bank_indicator(indicator: str, label: str) -> list:
@@ -98,13 +129,12 @@ def load_sp500() -> pd.DataFrame:
     for col in numeric_cols:
         df[col] = pd.to_numeric(df[col], errors="coerce")
 
-    df["PE10"] = df["PE10"].replace(0, np.nan)
+    placeholder_zero_cols = ["Dividend", "Earnings", "Real Dividend", "Real Earnings", "PE10"]
+    df[placeholder_zero_cols] = df[placeholder_zero_cols].replace(0, np.nan)
     df = df[df["Date"].dt.year.between(START_YEAR, END_YEAR)].copy()
     required = [
         "Date",
         "SP500",
-        "Dividend",
-        "Earnings",
         "Consumer Price Index",
         "Long Interest Rate",
         "PE10",
@@ -112,8 +142,13 @@ def load_sp500() -> pd.DataFrame:
     df = df.dropna(subset=required)
 
     assert df["Date"].is_unique, "S&P 500 monthly dates should be unique"
-    assert df["Date"].dt.year.min() == START_YEAR
-    assert df["Date"].dt.year.max() == END_YEAR
+    assert_expected_years(df["Date"].dt.year, "S&P 500 clean data")
+    assert_yearly_coverage(
+        df["Date"],
+        "S&P 500 clean data",
+        default_min_count=DEFAULT_SP500_MIN_MONTHS,
+        min_count_by_year=SP500_MIN_MONTHS_BY_YEAR,
+    )
 
     df.to_csv(DATA_DIR / "sp500_shiller_clean.csv", index=False)
     return df
@@ -139,8 +174,7 @@ def load_world_bank() -> pd.DataFrame:
     df = df[df["countryiso3code"] == "USA"].sort_values("date").reset_index(drop=True)
 
     assert df["date"].is_unique, "World Bank clean data should have one row per year"
-    assert df["date"].min() == START_YEAR
-    assert df["date"].max() == END_YEAR
+    assert_expected_years(df["date"], "World Bank clean data")
     assert df[["gdp_growth", "inflation_rate"]].notna().all().all()
 
     df.to_csv(DATA_DIR / "world_bank_clean.csv", index=False)
@@ -192,6 +226,14 @@ def load_gold_proxy() -> pd.DataFrame:
     df["Volume"] = pd.to_numeric(df["Volume"], errors="coerce")
     df = df.dropna(subset=["Date", "Close"])
     df = df[df["Date"].dt.year.between(START_YEAR, END_YEAR)].copy()
+    assert df["Date"].is_unique, "Gold clean data should have unique trading dates"
+    assert_expected_years(df["Date"].dt.year, "Gold clean data")
+    assert_yearly_coverage(
+        df["Date"],
+        "Gold clean data",
+        default_min_count=DEFAULT_GOLD_MIN_DAYS,
+        min_count_by_year=GOLD_MIN_DAYS_BY_YEAR,
+    )
 
     df.to_csv(DATA_DIR / "gold_prices_clean.csv", index=False)
     return df
@@ -234,6 +276,7 @@ def build_merged_dataset(
         "Gold annual": gold_annual,
     }.items():
         assert df["Year"].is_unique, f"{name} has duplicate years"
+        assert_expected_years(df["Year"], name)
 
     merged = pd.merge(
         sp500_annual,
@@ -251,6 +294,8 @@ def build_merged_dataset(
     )
     merged = merged.sort_values("Year").reset_index(drop=True)
 
+    assert_expected_years(merged["Year"], "Merged data")
+
     merged["cape_yield"] = 100 / merged["PE10"]
     merged["cape_yield_minus_10y_yield"] = merged["cape_yield"] - merged["Long Interest Rate"]
     merged["dividend_yield"] = (merged["Dividend"] / merged["SP500"]) * 100
@@ -261,9 +306,9 @@ def build_merged_dataset(
     merged["gdp_growth_lag1"] = merged["gdp_growth"].shift(1)
 
     assert merged["Year"].is_unique
-    assert merged["Year"].min() == START_YEAR
-    assert merged["Year"].max() == END_YEAR
-    assert merged[["SP500", "PE10", "gdp_growth", "inflation_rate", "gold_close"]].notna().all().all()
+    assert merged[
+        ["SP500", "Dividend", "Earnings", "PE10", "gdp_growth", "inflation_rate", "gold_close"]
+    ].notna().all().all()
 
     merged.to_csv(DATA_DIR / "macro_stock_merged.csv", index=False)
     return merged

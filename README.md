@@ -20,6 +20,8 @@ We investigate the relationships between:
 ## Important Data Notes
 
 - `data/world_bank_clean.csv` is expected to contain one row per US year.
+- The S&P 500 cleaning step treats `0.0` values in `Dividend`, `Earnings`, `Real Dividend`, `Real Earnings`, and `PE10` as missing placeholders. Annual averages are computed per column, so unavailable dividend/earnings fields do not cause otherwise valid monthly price, CPI, rate, or PE10 rows to be dropped.
+- The validation script enforces full year coverage from 2000-2023, with documented partial-year exceptions: S&P 500 has 9 monthly observations in 2023 in the source file, and gold futures data begins partway through 2000. Gold annual-average YoY changes are therefore suppressed for 2000 and 2001.
 - `sp500_annual_avg_yoy_change` and `gold_annual_avg_yoy_change` are year-over-year percentage changes in **annual average price levels**, not true calendar-year total returns. Use month-end/year-end values or total-return series if investment return precision is required.
 - `cape_yield` is computed as `100 / PE10`, so it is a **CAPE yield proxy**, not a conventional current earnings yield.
 - `cape_yield_minus_10y_yield` is a rough **CAPE yield minus 10-year yield spread**, not a full expected equity risk premium model.
