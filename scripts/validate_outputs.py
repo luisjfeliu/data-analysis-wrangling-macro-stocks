@@ -54,11 +54,22 @@ def validate_macro_stock_merged() -> None:
         "gdp_growth",
         "inflation_rate",
         "gold_close",
-        "sp500_annual_return",
-        "gold_annual_return",
+        "cape_yield",
+        "cape_yield_minus_10y_yield",
+        "sp500_annual_avg_yoy_change",
+        "gold_annual_avg_yoy_change",
         "gdp_growth_lag1",
     }
     require(required_columns.issubset(df.columns), f"{path} is missing required columns")
+
+    retired_columns = {
+        "earnings_yield",
+        "equity_risk_premium",
+        "sp500_annual_return",
+        "gold_annual_return",
+    }
+    require(not retired_columns.intersection(df.columns), "Merged output still contains ambiguous retired column names")
+
     require(df["Year"].is_monotonic_increasing, "Merged output is not sorted by Year")
     require(df["Year"].is_unique, "Merged output has duplicate Year values")
     require(df["Year"].min() == 2000 and df["Year"].max() == 2023, "Unexpected merged year range")
@@ -69,8 +80,8 @@ def validate_macro_stock_merged() -> None:
         .all(),
         "Merged output has missing required analytical values",
     )
-    require(pd.isna(df.loc[df["Year"] == 2000, "sp500_annual_return"]).all(), "First S&P return should be NA")
-    require(pd.isna(df.loc[df["Year"] == 2000, "gold_annual_return"]).all(), "First gold return should be NA")
+    require(pd.isna(df.loc[df["Year"] == 2000, "sp500_annual_avg_yoy_change"]).all(), "First S&P YoY change should be NA")
+    require(pd.isna(df.loc[df["Year"] == 2000, "gold_annual_avg_yoy_change"]).all(), "First gold YoY change should be NA")
     require(pd.isna(df.loc[df["Year"] == 2000, "gdp_growth_lag1"]).all(), "First GDP lag should be NA")
 
 
