@@ -240,9 +240,12 @@ def validate_macro_stock_merged() -> None:
         "dividend_yield",
         "cape_yield",
         "cape_yield_minus_10y_yield",
+        "sp500_months_used",
+        "sp500_coverage_label",
         "sp500_annual_avg_yoy_change",
         "gold_annual_avg_yoy_change",
         "gdp_growth_lag1",
+        "gdp_growth_lead1",
     }
     require_columns(df, required_columns, path)
 
@@ -257,6 +260,20 @@ def validate_macro_stock_merged() -> None:
     require(df["Year"].is_monotonic_increasing, "Merged output is not sorted by Year")
     require(df["Year"].is_unique, "Merged output has duplicate Year values")
     require_expected_years(df["Year"], "Merged output")
+    require(
+        df.loc[df["Year"] == END_YEAR, "sp500_months_used"].eq(9).all(),
+        "Merged output should label 2023 S&P metrics as using 9 aligned months",
+    )
+    require(
+        df.loc[df["Year"] == END_YEAR, "sp500_coverage_label"]
+        .eq("aligned_9_month_partial_year")
+        .all(),
+        "Merged output should label 2023 S&P metrics as aligned 9-month partial-year values",
+    )
+    require(
+        df.loc[df["Year"] < END_YEAR, "sp500_coverage_label"].eq("full_year").all(),
+        "Merged output should label pre-2023 S&P metrics as full-year values",
+    )
     require(
         df[
             [
@@ -279,9 +296,11 @@ def validate_macro_stock_merged() -> None:
     require(pd.isna(df.loc[df["Year"] == START_YEAR, "sp500_annual_avg_yoy_change"]).all(), "First S&P YoY change should be NA")
     require(pd.isna(df.loc[df["Year"] <= START_YEAR + 1, "gold_annual_avg_yoy_change"]).all(), "Gold YoY change for 2000 and 2001 should be NA due to partial 2000 data")
     require(pd.isna(df.loc[df["Year"] == START_YEAR, "gdp_growth_lag1"]).all(), "First GDP lag should be NA")
+    require(pd.isna(df.loc[df["Year"] == END_YEAR, "gdp_growth_lead1"]).all(), "Last GDP lead should be NA")
     require(df.loc[df["Year"] > START_YEAR, "sp500_annual_avg_yoy_change"].notna().all(), "Non-boundary S&P YoY change values should not be NaN")
     require(df.loc[df["Year"] > START_YEAR + 1, "gold_annual_avg_yoy_change"].notna().all(), "Non-boundary gold YoY change values should not be NaN")
     require(df.loc[df["Year"] > START_YEAR, "gdp_growth_lag1"].notna().all(), "Non-boundary GDP lag values should not be NaN")
+    require(df.loc[df["Year"] < END_YEAR, "gdp_growth_lead1"].notna().all(), "Non-boundary GDP lead values should not be NaN")
 
 
 def validate_sqlite_store() -> None:

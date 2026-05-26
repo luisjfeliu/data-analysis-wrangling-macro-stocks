@@ -7828,7 +7828,7 @@ a.anchor-link {
 <li>The World Bank data is fetched directly for <code>country/USA</code>, not <code>country/all</code>, and is used as supplemental annual macro context for the merged analysis; it is not counted as one of the two &gt;500-observation rubric-qualifying datasets.</li>
 <li><code>GC=F</code> from Yahoo Finance is treated as a gold futures/proxy series, not physical spot gold.</li>
 <li>S&amp;P 500 <code>0.0</code> placeholders in unavailable-data fields are converted to <code>NaN</code> before annual averaging, including dividend, earnings, CPI, interest-rate, real-price, real-dividend, real-earnings, and PE10 fields.</li>
-<li>Validation enforces 2000-2023 coverage, with documented partial-year exceptions for S&amp;P 2023 and gold 2000. In 2023, the source contains placeholder values after September, so the cleaned data retains 9 valid months for price/CPI/rate/PE10 fields and 6 valid months for dividend/earnings fields; these counts are checked directly.</li>
+<li>Validation enforces 2000-2023 coverage, with documented partial-year exceptions for S&amp;P 2023 and gold 2000. In 2023, the source contains placeholder values after September, so S&amp;P annual metrics are aligned to the 9 valid months with available price/CPI/rate/PE10 fields, while dividend and earnings averages use the 6 months with available values. The merged dataset labels this explicitly with <code>sp500_months_used</code> and <code>sp500_coverage_label</code>.</li>
 <li><code>sp500_annual_avg_yoy_change</code> and <code>gold_annual_avg_yoy_change</code> are year-over-year changes in annual average price levels, not true calendar-year total returns.</li>
 <li><code>cape_yield</code> is computed as <code>100 / PE10</code>, so it is a CAPE-yield proxy.</li>
 <li><code>cape_yield_minus_10y_yield</code> is a rough CAPE-yield minus 10-year yield spread, not a full expected equity risk premium model.</li>
@@ -8915,7 +8915,7 @@ Inflation raw data: (24, 8)
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<p><strong>Issue</strong>: In the S&amp;P 500 dataset, several fields use exact <code>0.0</code> values as unavailable-data placeholders. <code>PE10</code> contains <code>0.0</code> values in older periods and in the final three source rows for 2023. In the 2023 analysis window, <code>Consumer Price Index</code>, <code>Long Interest Rate</code>, <code>Real Price</code>, and <code>PE10</code> use <code>0.0</code> placeholders in the final three source rows, while <code>Dividend</code>, <code>Earnings</code>, <code>Real Dividend</code>, and <code>Real Earnings</code> use <code>0.0</code> placeholders in the final six source rows.</p>
+<p><strong>Issue</strong>: In the S&amp;P 500 dataset, several fields use exact <code>0.0</code> values as unavailable-data placeholders. <code>PE10</code> contains <code>0.0</code> values in older periods, in the final three source rows for 2023, and in the cached raw rows after the analysis window. In the 2023 analysis window, <code>Consumer Price Index</code>, <code>Long Interest Rate</code>, <code>Real Price</code>, and <code>PE10</code> use <code>0.0</code> placeholders in the final three source rows, while <code>Dividend</code>, <code>Earnings</code>, <code>Real Dividend</code>, and <code>Real Earnings</code> use <code>0.0</code> placeholders in the final six source rows. Cached 2024-2026 rows are excluded from the analysis window but also contain unavailable-data placeholders in the same non-price fields.</p>
 <p><strong>Justification for Cleaning</strong>: A PE10 ratio, CPI level, long-term interest rate, real price, dividend, or earnings value of <code>0.0</code> is not a plausible available observation for these Shiller fields in the analysis window; it indicates unavailable source data. These values are replaced with <code>NaN</code> so they are correctly handled as missing. Rows missing core analytical fields (<code>Date</code>, <code>SP500</code>, <code>Consumer Price Index</code>, <code>Long Interest Rate</code>, and <code>PE10</code>) are dropped, while dividend and earnings annual averages still use the valid available months only.</p>
 <p><strong>Justification for Assessment Methods</strong>:</p>
 <ul>
@@ -9549,7 +9549,7 @@ Min Year: 2000 Max Year: 2023
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<p>Justification: Replacing 0.0 placeholders in <code>PE10</code>, CPI, interest-rate, real-price, dividend, and earnings fields with <code>NaN</code> ensures unavailable values are treated as missing, preventing incorrect statistical summaries and biased annual averages. Limiting the dates to 2000-2023 aligns the data with our research window. The 2023 validation counts document that the final year is partial after cleaning: 9 valid months remain for the core price/CPI/rate/PE10 fields, while dividend and earnings averages use the 6 months with available values.</p>
+<p>Justification: Replacing 0.0 placeholders in <code>PE10</code>, CPI, interest-rate, real-price, dividend, and earnings fields with <code>NaN</code> ensures unavailable values are treated as missing, preventing incorrect statistical summaries and biased annual averages. Limiting the dates to 2000-2023 aligns the data with our research window. The 2023 validation counts document that the final year is partial after cleaning: S&amp;P annual metrics are aligned to the 9 valid months with available price/CPI/rate/PE10 fields, while dividend and earnings averages use the 6 months with available values. The merged dataset labels this status with <code>sp500_months_used</code> and <code>sp500_coverage_label</code>.</p>
 </div>
 </div>
 </div>
@@ -9965,7 +9965,7 @@ Gold price range: 255.10000610351562 to 2081.89990234375
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
 <h3 id="Remove-unnecessary-variables-and-combine-datasets"><strong>Remove unnecessary variables and combine datasets</strong><a class="anchor-link" href="#Remove-unnecessary-variables-and-combine-datasets">¶</a></h3><p>Depending on the datasets, you can also perform the combination before the cleaning steps.</p>
-<p>For the final merged dataset, unnecessary variables are removed by selecting only fields needed for the research question: annual S&amp;P 500 valuation/yield fields, U.S. GDP growth and inflation, and annual gold close/volume summaries. Raw gold OHLC fields, raw World Bank API metadata, nested API dictionaries, and intermediate real-price Shiller fields are retained in the raw/cleaned source files but excluded from the final analysis table to keep the combined dataset focused and interpretable.</p>
+<p>For the final merged dataset, unnecessary variables are removed by selecting only fields needed for the research question: annual S&amp;P 500 valuation/yield fields, S&amp;P month-coverage labels, U.S. GDP growth and inflation, and annual gold close/volume summaries. Raw gold OHLC fields, raw World Bank API metadata, nested API dictionaries, and intermediate real-price Shiller fields are retained in the raw/cleaned source files but excluded from the final analysis table to keep the combined dataset focused and interpretable.</p>
 </div>
 </div>
 </div>
@@ -9984,6 +9984,23 @@ Gold price range: 255.10000610351562 to 2081.89990234375
         <span class="p">[</span><span class="s2">"SP500"</span><span class="p">,</span> <span class="s2">"Dividend"</span><span class="p">,</span> <span class="s2">"Earnings"</span><span class="p">,</span> <span class="s2">"Consumer Price Index"</span><span class="p">,</span> <span class="s2">"Long Interest Rate"</span><span class="p">,</span> <span class="s2">"PE10"</span><span class="p">]</span>
     <span class="p">]</span>
     <span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+<span class="p">)</span>
+<span class="n">df_sp500_months_used</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="n">df_sp500_clean</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">Year</span><span class="o">=</span><span class="n">df_sp500_clean</span><span class="p">[</span><span class="s2">"Date"</span><span class="p">]</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">year</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s2">"Year"</span><span class="p">,</span> <span class="n">as_index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">agg</span><span class="p">(</span><span class="n">sp500_months_used</span><span class="o">=</span><span class="p">(</span><span class="s2">"SP500"</span><span class="p">,</span> <span class="s2">"count"</span><span class="p">))</span>
+<span class="p">)</span>
+<span class="n">df_sp500_annual</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span>
+    <span class="n">df_sp500_annual</span><span class="p">,</span>
+    <span class="n">df_sp500_months_used</span><span class="p">,</span>
+    <span class="n">on</span><span class="o">=</span><span class="s2">"Year"</span><span class="p">,</span>
+    <span class="n">how</span><span class="o">=</span><span class="s2">"inner"</span><span class="p">,</span>
+    <span class="n">validate</span><span class="o">=</span><span class="s2">"one_to_one"</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">df_sp500_annual</span><span class="p">[</span><span class="s2">"sp500_coverage_label"</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+    <span class="n">df_sp500_annual</span><span class="p">[</span><span class="s2">"sp500_months_used"</span><span class="p">]</span> <span class="o">==</span> <span class="n">DEFAULT_SP500_MIN_MONTHS</span><span class="p">,</span>
+    <span class="s2">"full_year"</span><span class="p">,</span>
+    <span class="s2">"aligned_9_month_partial_year"</span><span class="p">,</span>
 <span class="p">)</span>
 
 <span class="c1"># Aggregate daily Gold prices to annual averages</span>
@@ -10023,6 +10040,9 @@ Gold price range: 255.10000610351562 to 2081.89990234375
 <span class="k">assert</span> <span class="n">pd</span><span class="o">.</span><span class="n">isna</span><span class="p">(</span><span class="n">df_merged</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">df_merged</span><span class="p">[</span><span class="s2">"Year"</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mi">2001</span><span class="p">,</span> <span class="s2">"gold_annual_avg_yoy_change"</span><span class="p">])</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
 <span class="nb">print</span><span class="p">(</span><span class="s2">"Gold partial-year YoY handling: 2000 and 2001 are set to NaN."</span><span class="p">)</span>
 <span class="n">df_merged</span><span class="p">[</span><span class="s2">"gdp_growth_lag1"</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_merged</span><span class="p">[</span><span class="s2">"gdp_growth"</span><span class="p">]</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">df_merged</span><span class="p">[</span><span class="s2">"gdp_growth_lead1"</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_merged</span><span class="p">[</span><span class="s2">"gdp_growth"</span><span class="p">]</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+<span class="k">assert</span> <span class="n">df_merged</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">df_merged</span><span class="p">[</span><span class="s2">"Year"</span><span class="p">]</span> <span class="o">==</span> <span class="n">END_YEAR</span><span class="p">,</span> <span class="s2">"sp500_months_used"</span><span class="p">]</span><span class="o">.</span><span class="n">item</span><span class="p">()</span> <span class="o">==</span> <span class="mi">9</span>
+<span class="k">assert</span> <span class="n">df_merged</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">df_merged</span><span class="p">[</span><span class="s2">"Year"</span><span class="p">]</span> <span class="o">==</span> <span class="n">END_YEAR</span><span class="p">,</span> <span class="s2">"sp500_coverage_label"</span><span class="p">]</span><span class="o">.</span><span class="n">item</span><span class="p">()</span> <span class="o">==</span> <span class="s2">"aligned_9_month_partial_year"</span>
 
 <span class="c1"># Save clean datasets to disk</span>
 <span class="n">df_sp500_clean</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">DATA_DIR</span> <span class="o">/</span> <span class="s2">"sp500_shiller_clean.csv"</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
@@ -10045,7 +10065,7 @@ Gold price range: 255.10000610351562 to 2081.89990234375
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
 <pre>Gold partial-year YoY handling: 2000 and 2001 are set to NaN.
-Merged annual dataset shape: (24, 17)
+Merged annual dataset shape: (24, 20)
 </pre>
 </div>
 </div>
@@ -10077,6 +10097,8 @@ Merged annual dataset shape: (24, 17)
 <th>Consumer Price Index</th>
 <th>Long Interest Rate</th>
 <th>PE10</th>
+<th>sp500_months_used</th>
+<th>sp500_coverage_label</th>
 <th>gdp_growth</th>
 <th>inflation_rate</th>
 <th>gold_close</th>
@@ -10087,6 +10109,7 @@ Merged annual dataset shape: (24, 17)
 <th>sp500_annual_avg_yoy_change</th>
 <th>gold_annual_avg_yoy_change</th>
 <th>gdp_growth_lag1</th>
+<th>gdp_growth_lead1</th>
 </tr>
 </thead>
 <tbody>
@@ -10099,6 +10122,8 @@ Merged annual dataset shape: (24, 17)
 <td>172.200000</td>
 <td>6.029167</td>
 <td>41.700833</td>
+<td>12</td>
+<td>full_year</td>
 <td>4.077586</td>
 <td>3.376857</td>
 <td>270.280952</td>
@@ -10109,6 +10134,7 @@ Merged annual dataset shape: (24, 17)
 <td>NaN</td>
 <td>NaN</td>
 <td>NaN</td>
+<td>0.955538</td>
 </tr>
 <tr>
 <th>1</th>
@@ -10119,6 +10145,8 @@ Merged annual dataset shape: (24, 17)
 <td>177.066667</td>
 <td>5.017500</td>
 <td>32.064167</td>
+<td>12</td>
+<td>full_year</td>
 <td>0.955538</td>
 <td>2.826171</td>
 <td>271.043724</td>
@@ -10129,6 +10157,7 @@ Merged annual dataset shape: (24, 17)
 <td>-16.463065</td>
 <td>NaN</td>
 <td>4.077586</td>
+<td>1.700447</td>
 </tr>
 <tr>
 <th>2</th>
@@ -10139,6 +10168,8 @@ Merged annual dataset shape: (24, 17)
 <td>179.875000</td>
 <td>4.610833</td>
 <td>25.918333</td>
+<td>12</td>
+<td>full_year</td>
 <td>1.700447</td>
 <td>1.586032</td>
 <td>310.475601</td>
@@ -10149,6 +10180,7 @@ Merged annual dataset shape: (24, 17)
 <td>-16.479482</td>
 <td>14.548161</td>
 <td>0.955538</td>
+<td>2.795606</td>
 </tr>
 <tr>
 <th>3</th>
@@ -10159,6 +10191,8 @@ Merged annual dataset shape: (24, 17)
 <td>183.958333</td>
 <td>4.015000</td>
 <td>24.107500</td>
+<td>12</td>
+<td>full_year</td>
 <td>2.795606</td>
 <td>2.270095</td>
 <td>363.719601</td>
@@ -10169,6 +10203,7 @@ Merged annual dataset shape: (24, 17)
 <td>-3.208103</td>
 <td>17.149174</td>
 <td>1.700447</td>
+<td>3.847772</td>
 </tr>
 <tr>
 <th>4</th>
@@ -10179,6 +10214,8 @@ Merged annual dataset shape: (24, 17)
 <td>188.883333</td>
 <td>4.274167</td>
 <td>26.413333</td>
+<td>12</td>
+<td>full_year</td>
 <td>3.847772</td>
 <td>2.677237</td>
 <td>409.520481</td>
@@ -10189,6 +10226,7 @@ Merged annual dataset shape: (24, 17)
 <td>17.314539</td>
 <td>12.592360</td>
 <td>2.795606</td>
+<td>3.483550</td>
 </tr>
 </tbody>
 </table>
@@ -11049,9 +11087,7 @@ The inflation-regime visual shows that average annual-mean gold futures/proxy pr
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Visual 5: S&amp;P 500 YoY Change (Year t) vs. Future GDP Growth (Year t+1)</span>
-<span class="n">df_lead</span> <span class="o">=</span> <span class="n">df_merged</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-<span class="n">df_lead</span><span class="p">[</span><span class="s2">"gdp_growth_lead1"</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_lead</span><span class="p">[</span><span class="s2">"gdp_growth"</span><span class="p">]</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
-<span class="n">lag_data</span> <span class="o">=</span> <span class="n">df_lead</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="p">[</span><span class="s2">"sp500_annual_avg_yoy_change"</span><span class="p">,</span> <span class="s2">"gdp_growth_lead1"</span><span class="p">])</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+<span class="n">lag_data</span> <span class="o">=</span> <span class="n">df_merged</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="p">[</span><span class="s2">"sp500_annual_avg_yoy_change"</span><span class="p">,</span> <span class="s2">"gdp_growth_lead1"</span><span class="p">])</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
 
 <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
 <span class="n">sns</span><span class="o">.</span><span class="n">regplot</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">lag_data</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="s2">"sp500_annual_avg_yoy_change"</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="s2">"gdp_growth_lead1"</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">42</span><span class="p">)</span>
@@ -11338,6 +11374,8 @@ Number of outliers in annual average PE10: 1
 <th>Consumer Price Index</th>
 <th>Long Interest Rate</th>
 <th>PE10</th>
+<th>sp500_months_used</th>
+<th>sp500_coverage_label</th>
 <th>gdp_growth</th>
 <th>inflation_rate</th>
 <th>gold_close</th>
@@ -11348,6 +11386,7 @@ Number of outliers in annual average PE10: 1
 <th>sp500_annual_avg_yoy_change</th>
 <th>gold_annual_avg_yoy_change</th>
 <th>gdp_growth_lag1</th>
+<th>gdp_growth_lead1</th>
 </tr>
 </thead>
 <tbody>
@@ -11360,6 +11399,8 @@ Number of outliers in annual average PE10: 1
 <td>172.2</td>
 <td>6.029167</td>
 <td>41.700833</td>
+<td>12</td>
+<td>full_year</td>
 <td>4.077586</td>
 <td>3.376857</td>
 <td>270.280952</td>
@@ -11370,6 +11411,7 @@ Number of outliers in annual average PE10: 1
 <td>NaN</td>
 <td>NaN</td>
 <td>NaN</td>
+<td>0.955538</td>
 </tr>
 </tbody>
 </table>
@@ -11655,16 +11697,24 @@ Variance Inflation Factors (VIF) for Collinearity Check:
 <span class="k">assert</span> <span class="n">nulls</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"Null values found in modeling columns: </span><span class="si">{</span><span class="n">nulls</span><span class="si">}</span><span class="s2">"</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  - Missing value check: Passed (zero nulls in </span><span class="si">{</span><span class="n">modeling_cols</span><span class="si">}</span><span class="s2">)"</span><span class="p">)</span>
 
-<span class="c1"># 5. First year YoY/lag check (should be NA)</span>
+<span class="c1"># 5. S&amp;P coverage-label check</span>
+<span class="k">assert</span> <span class="n">df_merged</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">df_merged</span><span class="p">[</span><span class="s2">"Year"</span><span class="p">]</span> <span class="o">==</span> <span class="mi">2023</span><span class="p">,</span> <span class="s2">"sp500_months_used"</span><span class="p">]</span><span class="o">.</span><span class="n">eq</span><span class="p">(</span><span class="mi">9</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+<span class="k">assert</span> <span class="n">df_merged</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">df_merged</span><span class="p">[</span><span class="s2">"Year"</span><span class="p">]</span> <span class="o">==</span> <span class="mi">2023</span><span class="p">,</span> <span class="s2">"sp500_coverage_label"</span><span class="p">]</span><span class="o">.</span><span class="n">eq</span><span class="p">(</span><span class="s2">"aligned_9_month_partial_year"</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+<span class="k">assert</span> <span class="n">df_merged</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">df_merged</span><span class="p">[</span><span class="s2">"Year"</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">2023</span><span class="p">,</span> <span class="s2">"sp500_coverage_label"</span><span class="p">]</span><span class="o">.</span><span class="n">eq</span><span class="p">(</span><span class="s2">"full_year"</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"  - S&amp;P coverage-label check: Passed (2023 labeled as aligned 9-month partial-year)"</span><span class="p">)</span>
+
+<span class="c1"># 6. First/last year YoY, lag, and lead checks (should be NA)</span>
 <span class="k">assert</span> <span class="n">pd</span><span class="o">.</span><span class="n">isna</span><span class="p">(</span><span class="n">df_merged</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">df_merged</span><span class="p">[</span><span class="s2">"Year"</span><span class="p">]</span> <span class="o">==</span> <span class="mi">2000</span><span class="p">,</span> <span class="s2">"sp500_annual_avg_yoy_change"</span><span class="p">])</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
 <span class="k">assert</span> <span class="n">pd</span><span class="o">.</span><span class="n">isna</span><span class="p">(</span><span class="n">df_merged</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">df_merged</span><span class="p">[</span><span class="s2">"Year"</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mi">2001</span><span class="p">,</span> <span class="s2">"gold_annual_avg_yoy_change"</span><span class="p">])</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
 <span class="k">assert</span> <span class="n">pd</span><span class="o">.</span><span class="n">isna</span><span class="p">(</span><span class="n">df_merged</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">df_merged</span><span class="p">[</span><span class="s2">"Year"</span><span class="p">]</span> <span class="o">==</span> <span class="mi">2000</span><span class="p">,</span> <span class="s2">"gdp_growth_lag1"</span><span class="p">])</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  - Boundary YoY/Lag check: Passed (Year 2000/2001 null boundary values are correct)"</span><span class="p">)</span>
+<span class="k">assert</span> <span class="n">pd</span><span class="o">.</span><span class="n">isna</span><span class="p">(</span><span class="n">df_merged</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">df_merged</span><span class="p">[</span><span class="s2">"Year"</span><span class="p">]</span> <span class="o">==</span> <span class="mi">2023</span><span class="p">,</span> <span class="s2">"gdp_growth_lead1"</span><span class="p">])</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  - Boundary YoY/Lag/Lead check: Passed (boundary null values are correct)"</span><span class="p">)</span>
 
-<span class="c1"># 6. Non-boundary engineered values should be populated</span>
+<span class="c1"># 7. Non-boundary engineered values should be populated</span>
 <span class="k">assert</span> <span class="n">df_merged</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">df_merged</span><span class="p">[</span><span class="s2">"Year"</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">2000</span><span class="p">,</span> <span class="s2">"sp500_annual_avg_yoy_change"</span><span class="p">]</span><span class="o">.</span><span class="n">notna</span><span class="p">()</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
 <span class="k">assert</span> <span class="n">df_merged</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">df_merged</span><span class="p">[</span><span class="s2">"Year"</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">2001</span><span class="p">,</span> <span class="s2">"gold_annual_avg_yoy_change"</span><span class="p">]</span><span class="o">.</span><span class="n">notna</span><span class="p">()</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
 <span class="k">assert</span> <span class="n">df_merged</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">df_merged</span><span class="p">[</span><span class="s2">"Year"</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">2000</span><span class="p">,</span> <span class="s2">"gdp_growth_lag1"</span><span class="p">]</span><span class="o">.</span><span class="n">notna</span><span class="p">()</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+<span class="k">assert</span> <span class="n">df_merged</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">df_merged</span><span class="p">[</span><span class="s2">"Year"</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">2023</span><span class="p">,</span> <span class="s2">"gdp_growth_lead1"</span><span class="p">]</span><span class="o">.</span><span class="n">notna</span><span class="p">()</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
 <span class="nb">print</span><span class="p">(</span><span class="s2">"  - Non-boundary engineered-value check: Passed"</span><span class="p">)</span>
 
 <span class="nb">print</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">All inline verification checks passed successfully."</span><span class="p">)</span>
@@ -11685,7 +11735,8 @@ Variance Inflation Factors (VIF) for Collinearity Check:
   - Year range check: Passed (2000 to 2023)
   - Uniqueness check: Passed (no duplicate years)
   - Missing value check: Passed (zero nulls in ['PE10', 'gdp_growth', 'inflation_rate', 'Long Interest Rate'])
-  - Boundary YoY/Lag check: Passed (Year 2000/2001 null boundary values are correct)
+  - S&amp;P coverage-label check: Passed (2023 labeled as aligned 9-month partial-year)
+  - Boundary YoY/Lag/Lead check: Passed (boundary null values are correct)
   - Non-boundary engineered-value check: Passed
 
 All inline verification checks passed successfully.

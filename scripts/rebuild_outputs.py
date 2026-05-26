@@ -7,8 +7,9 @@ issues found during review:
 2. Validate every annual merge with validate='one_to_one'.
 3. Treat all known Shiller 0.0 unavailable-data placeholders as missing.
 4. Rename ambiguous engineered columns so they describe the actual calculation.
-5. Store current raw, cleaned, and merged tables in SQLite.
-6. Keep regenerated figures aligned with the executed notebook.
+5. Label S&P annual metrics with the number of aligned months used.
+6. Store current raw, cleaned, and merged tables in SQLite.
+7. Keep regenerated figures aligned with the executed notebook.
 """
 
 
@@ -335,6 +336,23 @@ def build_merged_dataset(
         ]
         .mean()
     )
+    sp500_months_used = (
+        sp500_clean.assign(Year=sp500_clean["Date"].dt.year)
+        .groupby("Year", as_index=False)
+        .agg(sp500_months_used=("SP500", "count"))
+    )
+    sp500_annual = pd.merge(
+        sp500_annual,
+        sp500_months_used,
+        on="Year",
+        how="inner",
+        validate="one_to_one",
+    )
+    sp500_annual["sp500_coverage_label"] = np.where(
+        sp500_annual["sp500_months_used"] == DEFAULT_SP500_MIN_MONTHS,
+        "full_year",
+        "aligned_9_month_partial_year",
+    )
 
     gold_annual = (
         gold_clean.assign(Year=gold_clean["Date"].dt.year)
@@ -381,8 +399,14 @@ def build_merged_dataset(
     # Set gold YoY change to NaN for 2000 and 2001 due to partial data in 2000
     merged.loc[merged["Year"] <= 2001, "gold_annual_avg_yoy_change"] = np.nan
     merged["gdp_growth_lag1"] = merged["gdp_growth"].shift(1)
+    merged["gdp_growth_lead1"] = merged["gdp_growth"].shift(-1)
 
     assert merged["Year"].is_unique
+    assert (
+        merged.loc[merged["Year"] == END_YEAR, "sp500_coverage_label"].item()
+        == "aligned_9_month_partial_year"
+    )
+    assert merged.loc[merged["Year"] == END_YEAR, "sp500_months_used"].item() == 9
     assert merged[
         ["SP500", "Dividend", "Earnings", "PE10", "gdp_growth", "inflation_rate", "gold_close"]
     ].notna().all().all()
@@ -515,9 +539,7 @@ def save_figures(merged: pd.DataFrame) -> None:
     plt.close()
 
     # Visual 5: S&P 500 YoY Change (Year t) vs. Future GDP Growth (Year t+1)
-    lead_data = merged.copy()
-    lead_data["gdp_growth_lead1"] = lead_data["gdp_growth"].shift(-1)
-    lag_data = lead_data.dropna(subset=["sp500_annual_avg_yoy_change", "gdp_growth_lead1"]).copy()
+    lag_data = merged.dropna(subset=["sp500_annual_avg_yoy_change", "gdp_growth_lead1"]).copy()
     plt.figure(figsize=(8, 5))
     sns.regplot(
         data=lag_data,
