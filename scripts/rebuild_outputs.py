@@ -60,6 +60,21 @@ def normalize_world_bank_indicator(df: pd.DataFrame, value_col: str) -> pd.DataF
     return out
 
 
+def first_matching_column(
+    columns: pd.Index,
+    *,
+    exact_names: set[str],
+    prefixes: tuple[str, ...] = (),
+) -> object | None:
+    """Return the first column whose normalized name matches common variants."""
+    for col in columns:
+        col_name = str(col).strip()
+        lowered = col_name.lower()
+        if lowered in exact_names or any(lowered.startswith(prefix) for prefix in prefixes):
+            return col
+    return None
+
+
 def load_sp500() -> pd.DataFrame:
     url = "https://raw.githubusercontent.com/datasets/s-and-p-500/master/data/data.csv"
     raw_path = DATA_DIR / "sp500_shiller_raw.csv"
@@ -153,14 +168,26 @@ def load_gold_proxy() -> pd.DataFrame:
     df = df.reset_index()
     df.to_csv(DATA_DIR / "gold_prices_raw.csv", index=False)
 
-    close_candidates = [col for col in df.columns if col == "Close" or str(col).startswith("Close_")]
-    volume_candidates = [col for col in df.columns if col == "Volume" or str(col).startswith("Volume_")]
-    if not close_candidates:
-        raise ValueError("Could not find a Close column in gold data")
-    if not volume_candidates:
-        raise ValueError("Could not find a Volume column in gold data")
+    date_col = first_matching_column(
+        df.columns,
+        exact_names={"date", "datetime", "index"},
+        prefixes=("date_", "datetime_"),
+    )
+    close_col = first_matching_column(df.columns, exact_names={"close"}, prefixes=("close_",))
+    volume_col = first_matching_column(df.columns, exact_names={"volume"}, prefixes=("volume_",))
 
-    df = df.rename(columns={close_candidates[0]: "Close", volume_candidates[0]: "Volume"})
+    missing = [
+        name
+        for name, col in {"date": date_col, "close": close_col, "volume": volume_col}.items()
+        if col is None
+    ]
+    if missing:
+        raise ValueError(
+            f"Could not find required gold data column(s): {', '.join(missing)}. "
+            f"Columns returned by yfinance: {[str(col) for col in df.columns]}"
+        )
+
+    df = df.rename(columns={date_col: "Date", close_col: "Close", volume_col: "Volume"})
     df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
     df["Close"] = pd.to_numeric(df["Close"], errors="coerce")
     df["Volume"] = pd.to_numeric(df["Volume"], errors="coerce")
