@@ -60,12 +60,13 @@ We investigate the relationships between:
 
 ## Key Findings & Visualizations
 
-The project produces several exploratory plots:
+The project produces several exploratory plots and analyses:
 
 1. **Valuations vs. Growth**: Shiller PE10 levels may be elevated during economic expansions, but the relationship should be interpreted cautiously because valuations and GDP growth are measured at different frequencies and the merged sample is small.
 2. **Inflation vs. Yields**: CPI inflation and long-term Treasury yields show a positive relationship in the sample, while dividend yields track inflation less directly.
 3. **Gold Proxy vs. Equities**: Inflation-regime analysis compares gold futures/proxy price changes with S&P 500 annual-average price changes. This is exploratory and should not be read as a full inflation-hedge test.
 4. **Lead-Lag Relationships**: The lagged GDP visualization is suggestive only. A formal cross-correlation, Granger-causality, or out-of-sample forecasting test would be needed before claiming leading-indicator behavior.
+5. **Multiple Linear Regression (OLS)**: A programmatic OLS model regressing PE10 against GDP growth, inflation, and interest rates explains about 31.1% of PE10 variance. It highlights multicollinearity, as the joint coefficient of interest rates is positive despite its strong negative univariate correlation.
 
 ## Installation and Requirements
 
