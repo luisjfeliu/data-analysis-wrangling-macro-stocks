@@ -265,15 +265,22 @@ def load_gold_proxy() -> pd.DataFrame:
             for col in df.columns.to_flat_index()
         ]
 
-    if not raw_is_cached_csv:
-        df = df.reset_index()
-        df.to_csv(raw_path, index=False)
-
     date_col = first_matching_column(
         df.columns,
         exact_names={"date", "datetime", "index"},
         prefixes=("date_", "datetime_"),
     )
+    if date_col is None and not raw_is_cached_csv:
+        df = df.reset_index()
+        date_col = first_matching_column(
+            df.columns,
+            exact_names={"date", "datetime", "index"},
+            prefixes=("date_", "datetime_"),
+        )
+    if date_col is not None and str(date_col) != "Date":
+        df = df.rename(columns={date_col: "Date"})
+        date_col = "Date"
+
     close_col = first_matching_column(df.columns, exact_names={"close"}, prefixes=("close_",))
     volume_col = first_matching_column(df.columns, exact_names={"volume"}, prefixes=("volume_",))
 
@@ -287,6 +294,8 @@ def load_gold_proxy() -> pd.DataFrame:
             f"Could not find required gold data column(s): {', '.join(missing)}. "
             f"Columns returned by yfinance: {[str(col) for col in df.columns]}"
         )
+
+    df.to_csv(raw_path, index=False)
 
     df = df.rename(columns={date_col: "Date", close_col: "Close", volume_col: "Volume"})
     df["Date"] = pd.to_datetime(df["Date"], errors="coerce")

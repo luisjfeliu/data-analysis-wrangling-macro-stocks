@@ -7837,7 +7837,7 @@ a.anchor-link {
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7872,19 +7872,6 @@ a.anchor-link {
 <span class="n">pd</span><span class="o">.</span><span class="n">set_option</span><span class="p">(</span><span class="s2">"display.max_columns"</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>
 <span class="n">sns</span><span class="o">.</span><span class="n">set_theme</span><span class="p">(</span><span class="n">style</span><span class="o">=</span><span class="s2">"whitegrid"</span><span class="p">)</span>
 </pre></div>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell-outputWrapper">
-<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
-</div>
-<div class="jp-OutputArea jp-Cell-outputArea">
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>Matplotlib is building the font cache; this may take a moment.
-</pre>
 </div>
 </div>
 </div>
@@ -8461,6 +8448,8 @@ Inflation raw data: (24, 8)
         <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">df_gold_raw_reset</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">to_flat_index</span><span class="p">()</span>
     <span class="p">]</span>
 <span class="n">df_gold_raw_reset</span> <span class="o">=</span> <span class="n">df_gold_raw_reset</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+<span class="k">if</span> <span class="s2">"index"</span> <span class="ow">in</span> <span class="n">df_gold_raw_reset</span><span class="o">.</span><span class="n">columns</span> <span class="ow">and</span> <span class="s2">"Date"</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df_gold_raw_reset</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+    <span class="n">df_gold_raw_reset</span> <span class="o">=</span> <span class="n">df_gold_raw_reset</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">{</span><span class="s2">"index"</span><span class="p">:</span> <span class="s2">"Date"</span><span class="p">})</span>
 
 <span class="c1"># Save the raw gold data in our local data store.</span>
 <span class="n">df_gold_raw_reset</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">raw_gold_path</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
@@ -8504,7 +8493,7 @@ Inflation raw data: (24, 8)
 <thead>
 <tr style="text-align: right;">
 <th></th>
-<th>index</th>
+<th>Date</th>
 <th>Adj Close_GC=F</th>
 <th>Close_GC=F</th>
 <th>High_GC=F</th>
@@ -8997,7 +8986,7 @@ Inflation raw data: (24, 8)
 <thead>
 <tr style="text-align: right;">
 <th></th>
-<th>index</th>
+<th>Date</th>
 <th>Close_GC=F</th>
 </tr>
 </thead>
@@ -9084,7 +9073,7 @@ Inflation raw data: (24, 8)
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>index
+<pre>Date
 2000     84
 2001    247
 2002    250
@@ -9601,7 +9590,7 @@ Min Year: 2000 Max Year: 2023
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>index
+<pre>Date
 2000     84
 2001    247
 2002    250
