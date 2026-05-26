@@ -55,7 +55,8 @@ We investigate the relationships between:
     ├── visual2_inflation_vs_yields.png  # CPI Inflation vs. Long-Term Interest Rates & Dividend Yields
     ├── visual3_correlation_heatmap.png  # Correlation heatmap across macro and market indicators
     ├── visual4_inflation_regimes.png    # Gold proxy vs. S&P 500 annual-average changes by inflation regime
-    └── visual5_lagged_lead_gdp.png      # Exploratory lagged relationship visualization
+    ├── visual5_lagged_lead_gdp.png      # Exploratory lagged relationship visualization
+    └── visual6_inflation_vs_yields_trends.png # US Inflation Rate vs. S&P 500 Dividend Yield & 10Y Interest Rate (2000-2023)
 ```
 
 ## Key Findings & Visualizations
@@ -67,6 +68,7 @@ The project produces several exploratory plots and analyses:
 3. **Gold Proxy vs. Equities**: Inflation-regime analysis compares gold futures/proxy price changes with S&P 500 annual-average price changes. This is exploratory and should not be read as a full inflation-hedge test.
 4. **Lead-Lag Relationships**: The lagged GDP visualization is suggestive only. A formal cross-correlation, Granger-causality, or out-of-sample forecasting test would be needed before claiming leading-indicator behavior.
 5. **Multiple Linear Regression (OLS)**: A programmatic OLS model regressing PE10 against GDP growth, inflation, and interest rates explains about 31.1% of PE10 variance. It highlights multicollinearity, as the joint coefficient of interest rates is positive despite its strong negative univariate correlation.
+6. **Chronological Time-Series Trends (Visual 6)**: A dual-axis time-series visualization tracing US inflation, stock dividend yields, and long-term interest rates chronologically. It reveals that while interest rates respond dynamically to inflation spikes (like the 2021-2022 surge), S&P 500 dividend yields remain relatively flat, meaning stock dividend yields did not adjust dynamically to consumer price inflation changes.
 
 ## Installation and Requirements
 

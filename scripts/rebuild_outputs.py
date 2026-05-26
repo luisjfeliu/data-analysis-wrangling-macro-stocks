@@ -253,6 +253,7 @@ def build_merged_dataset(
 
     merged["cape_yield"] = 100 / merged["PE10"]
     merged["cape_yield_minus_10y_yield"] = merged["cape_yield"] - merged["Long Interest Rate"]
+    merged["dividend_yield"] = (merged["Dividend"] / merged["SP500"]) * 100
     merged["sp500_annual_avg_yoy_change"] = merged["SP500"].pct_change() * 100
     merged["gold_annual_avg_yoy_change"] = merged["gold_close"].pct_change() * 100
     merged["gdp_growth_lag1"] = merged["gdp_growth"].shift(1)
@@ -344,6 +345,36 @@ def save_figures(merged: pd.DataFrame) -> None:
     plt.title("S&P 500 Annual-Average YoY Change vs. Same-Year GDP Growth")
     plt.tight_layout()
     plt.savefig(IMAGE_DIR / "visual5_lagged_lead_gdp.png", dpi=150)
+    plt.close()
+
+    # Visual 6: US Inflation Rate vs. S&P 500 Dividend Yield and Long-Term Interest Rates
+    fig, ax1 = plt.subplots(figsize=(10, 5))
+
+    # Plot Inflation on primary y-axis
+    color = "crimson"
+    ax1.set_xlabel("Year", fontsize=12)
+    ax1.set_ylabel("US Annual Inflation Rate (%)", color=color, fontsize=12)
+    line1 = ax1.plot(merged["Year"], merged["inflation_rate"], color=color, linewidth=2.5, label="US Inflation Rate", marker="s")
+    ax1.tick_params(axis="y", labelcolor=color)
+    ax1.grid(True, linestyle="--", alpha=0.3)
+
+    # Instantiate a second axes that shares the same x-axis
+    ax2 = ax1.twinx()
+    color_yield = "navy"
+    color_rate = "darkorange"
+    ax2.set_ylabel("Yield / Interest Rate (%)", color="black", fontsize=12)
+    line2 = ax2.plot(merged["Year"], merged["dividend_yield"], color=color_yield, linewidth=2, linestyle="--", label="S&P 500 Dividend Yield", marker="o")
+    line3 = ax2.plot(merged["Year"], merged["Long Interest Rate"], color=color_rate, linewidth=2, linestyle="-.", label="US Long Interest Rate (10Y)", marker="^")
+    ax2.tick_params(axis="y", labelcolor="black")
+
+    # Combine legends from both axes
+    lines = line1 + line2 + line3
+    labels = [l.get_label() for l in lines]
+    ax1.legend(lines, labels, loc="upper right", fontsize=10)
+
+    plt.title("US Inflation Rate vs. S&P 500 Dividend Yield & 10Y Interest Rate (2000-2023)", fontsize=14)
+    plt.tight_layout()
+    plt.savefig(IMAGE_DIR / "visual6_inflation_vs_yields_trends.png", dpi=150)
     plt.close()
 
 
