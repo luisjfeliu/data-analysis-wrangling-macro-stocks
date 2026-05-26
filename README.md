@@ -1,6 +1,6 @@
 # Real-World Data Wrangling: Macroeconomic Trends & Stock Market Valuations
 
-This project explores how macroeconomic growth and inflation trends in the United States relate to historical S&P 500 stock market valuation, dividend yields, long-term interest rates, and a gold futures price proxy. By programmatically gathering, cleaning, and merging three distinct datasets, the project performs exploratory analysis of relationships between macroeconomic health and financial asset valuation/price measures.
+This project explores how macroeconomic growth and inflation trends in the United States relate to historical S&P 500 stock market valuation, dividend yields, long-term interest rates, and a gold futures price proxy. It uses two large rubric-qualifying raw datasets, plus supplemental annual World Bank macroeconomic data, to perform exploratory analysis of relationships between macroeconomic health and financial asset valuation/price measures.
 
 ## Project Overview
 
@@ -13,9 +13,9 @@ We investigate the relationships between:
 
 ## Data Sources & Gathering Methods
 
-- **S&P 500 Shiller Dataset (CSV)**: Programmatically downloaded from GitHub, containing monthly records since 1871 for equity metrics, CPI, interest rates, and PE10.
-- **US Macroeconomic Data (JSON)**: Fetched from the World Bank Indicators API for annual US GDP growth and CPI inflation from 2000 to 2023. The corrected pipeline queries `country/USA` directly instead of `country/all`.
-- **Gold Futures Price Proxy (API)**: Programmatically retrieved from Yahoo Finance via the `yfinance` library using `GC=F`. `GC=F` is a futures-based Yahoo Finance symbol, so the project describes it as a gold futures/proxy series, not as physical spot gold.
+- **S&P 500 Shiller Dataset (CSV)**: Programmatically downloaded from GitHub, containing more than 500 monthly records for equity metrics, CPI, interest rates, and PE10.
+- **Gold Futures Price Proxy (API)**: Programmatically retrieved from Yahoo Finance via the `yfinance` library using `GC=F`, containing more than 500 daily market records. `GC=F` is a futures-based Yahoo Finance symbol, so the project describes it as a gold futures/proxy series, not as physical spot gold.
+- **Supplemental US Macroeconomic Data (JSON)**: Fetched from the World Bank Indicators API for annual US GDP growth and CPI inflation from 2000 to 2023. The corrected pipeline queries `country/USA` directly instead of `country/all`.
 
 ## Important Data Notes
 
@@ -66,11 +66,11 @@ We investigate the relationships between:
 The project produces several exploratory plots and analyses:
 
 1. **Valuations vs. Growth**: Shiller PE10 levels may be elevated during economic expansions, but the relationship should be interpreted cautiously because valuations and GDP growth are measured at different frequencies and the merged sample is small.
-2. **Inflation vs. Yields**: CPI inflation and long-term Treasury yields show a positive relationship in the sample, while dividend yields track inflation less directly.
-3. **Gold Proxy vs. Equities**: Inflation-regime analysis compares gold futures/proxy price changes with S&P 500 annual-average price changes. This is exploratory and should not be read as a full inflation-hedge test.
+2. **Inflation vs. Yields**: CPI inflation and long-term Treasury yields show a positive but modest relationship in the sample, while CAPE yield and dividend yield measures behave differently.
+3. **Gold Proxy vs. Equities**: Inflation-regime analysis compares gold futures/proxy price changes with S&P 500 annual-average price changes. Gold price changes are highest in the moderate-inflation group rather than the high-inflation group, so this is exploratory and should not be read as a full inflation-hedge test.
 4. **Lead-Lag Relationships**: The lagged GDP visualization is suggestive only. A formal cross-correlation, Granger-causality, or out-of-sample forecasting test would be needed before claiming leading-indicator behavior.
-5. **Multiple Linear Regression (OLS)**: A programmatic OLS model regressing PE10 against GDP growth, inflation, and interest rates explains about 31.1% of PE10 variance. It highlights joint-model dynamics: the long-rate coefficient is positive but statistically insignificant in the multiple regression, despite the bivariate relationship differing from the joint-model result. VIF diagnostics suggest low multicollinearity in this sample. 
-6. **Chronological Time-Series Trends (Visual 6)**: A dual-axis time-series visualization tracing US inflation, stock dividend yields, and long-term interest rates chronologically. It reveals that while interest rates respond dynamically to inflation spikes (like the 2021-2022 surge), S&P 500 dividend yields remain relatively flat, meaning stock dividend yields did not adjust dynamically to consumer price inflation changes.
+5. **Multiple Linear Regression (OLS)**: A programmatic OLS model regressing PE10 against GDP growth, inflation, and interest rates explains about 31.1% of PE10 variance. Because the sample contains only 24 annual observations and residual autocorrelation is present, the coefficients are interpreted as exploratory rather than causal. 
+6. **Chronological Time-Series Trends (Visual 6)**: A dual-axis time-series visualization tracing US inflation, stock dividend yields, and long-term interest rates chronologically. It shows that long-term rates rose during the 2021-2023 inflation surge even though the full-period correlation is modest, while S&P 500 dividend yields remained relatively flat or compressed.
 
 ## Installation and Requirements
 

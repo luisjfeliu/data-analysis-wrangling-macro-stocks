@@ -108,9 +108,15 @@ def first_matching_column(
 def load_sp500() -> pd.DataFrame:
     url = "https://raw.githubusercontent.com/datasets/s-and-p-500/master/data/data.csv"
     raw_path = DATA_DIR / "sp500_shiller_raw.csv"
-    response = requests.get(url, timeout=30)
-    response.raise_for_status()
-    raw_path.write_bytes(response.content)
+    try:
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        raw_path.write_bytes(response.content)
+    except requests.RequestException as exc:
+        if raw_path.exists():
+            print(f"S&P 500 download failed ({exc}); using cached raw file at {raw_path}.")
+        else:
+            raise
 
     df = pd.read_csv(raw_path)
     df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
