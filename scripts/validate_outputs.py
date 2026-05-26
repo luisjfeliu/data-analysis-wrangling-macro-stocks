@@ -36,6 +36,51 @@ def require_columns(df: pd.DataFrame, required_columns: set[str], path: Path) ->
     require(not missing_columns, f"{path} is missing required columns: {missing_columns}")
 
 
+def prepare_sqlite_frame(df: pd.DataFrame) -> pd.DataFrame:
+    """Convert nested raw API objects to JSON strings before SQLite comparison."""
+    out = df.copy()
+    for col in out.columns:
+        if out[col].map(lambda value: isinstance(value, (dict, list))).any():
+            out[col] = out[col].map(
+                lambda value: json.dumps(value) if isinstance(value, (dict, list)) else value
+            )
+    return out
+
+
+def require_table_matches_frame(
+    conn: sqlite3.Connection,
+    table: str,
+    expected: pd.DataFrame,
+) -> None:
+    """Validate that a SQLite table is not just present, but matches the stored source."""
+    actual = pd.read_sql_query(f'select * from "{table}"', conn)
+    actual = normalize_date_like_columns(actual)
+    expected = normalize_date_like_columns(expected)
+    try:
+        pd.testing.assert_frame_equal(
+            actual.reset_index(drop=True),
+            expected.reset_index(drop=True),
+            check_dtype=False,
+            check_exact=False,
+            rtol=1e-10,
+            atol=1e-10,
+        )
+    except AssertionError as exc:
+        raise AssertionError(f"SQLite table {table} content does not match source data: {exc}") from exc
+
+
+def normalize_date_like_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Normalize date-like storage strings so CSV and SQLite can be compared."""
+    out = df.copy()
+    for col in out.columns:
+        col_name = str(col).lower()
+        if col_name == "index" or "date" in col_name:
+            parsed = pd.to_datetime(out[col], errors="coerce")
+            if parsed.notna().all():
+                out[col] = parsed.dt.strftime("%Y-%m-%d")
+    return out
+
+
 def require_expected_years(years: pd.Series, label: str) -> None:
     actual_years = set(years.dropna().astype(int))
     missing_years = EXPECTED_YEARS - actual_years
@@ -235,40 +280,38 @@ def validate_sqlite_store() -> None:
             f"SQLite data store is missing tables: {sorted(expected_tables - actual_tables)}",
         )
 
-        csv_row_counts = {
-            "sp500_shiller_raw": len(pd.read_csv(DATA_DIR / "sp500_shiller_raw.csv")),
-            "gold_prices_raw": len(pd.read_csv(DATA_DIR / "gold_prices_raw.csv")),
-            "sp500_shiller_clean": len(pd.read_csv(DATA_DIR / "sp500_shiller_clean.csv")),
-            "world_bank_clean": len(pd.read_csv(DATA_DIR / "world_bank_clean.csv")),
-            "gold_prices_clean": len(pd.read_csv(DATA_DIR / "gold_prices_clean.csv")),
-            "macro_stock_merged": len(pd.read_csv(DATA_DIR / "macro_stock_merged.csv")),
+        expected_frames = {
+            "sp500_shiller_raw": pd.read_csv(DATA_DIR / "sp500_shiller_raw.csv"),
+            "gold_prices_raw": pd.read_csv(DATA_DIR / "gold_prices_raw.csv"),
+            "sp500_shiller_clean": pd.read_csv(DATA_DIR / "sp500_shiller_clean.csv"),
+            "world_bank_clean": pd.read_csv(DATA_DIR / "world_bank_clean.csv"),
+            "gold_prices_clean": pd.read_csv(DATA_DIR / "gold_prices_clean.csv"),
+            "macro_stock_merged": pd.read_csv(DATA_DIR / "macro_stock_merged.csv"),
+            "world_bank_gdp_raw": prepare_sqlite_frame(
+                pd.DataFrame(json.loads((DATA_DIR / "world_bank_gdp_raw.json").read_text())[1])
+            ),
+            "world_bank_inflation_raw": prepare_sqlite_frame(
+                pd.DataFrame(
+                    json.loads((DATA_DIR / "world_bank_inflation_raw.json").read_text())[1]
+                )
+            ),
         }
-        for table, expected_count in csv_row_counts.items():
+        for table, expected_frame in expected_frames.items():
+            expected_count = len(expected_frame)
             actual_count = conn.execute(f'select count(*) from "{table}"').fetchone()[0]
             require(
                 actual_count == expected_count,
                 f"SQLite table {table} has {actual_count} rows; expected {expected_count}",
             )
+            require_table_matches_frame(conn, table, expected_frame)
 
-        raw_gdp_rows = len(json.loads((DATA_DIR / "world_bank_gdp_raw.json").read_text())[1])
-        raw_inflation_rows = len(
-            json.loads((DATA_DIR / "world_bank_inflation_raw.json").read_text())[1]
-        )
-        for table, expected_count in {
-            "world_bank_gdp_raw": raw_gdp_rows,
-            "world_bank_inflation_raw": raw_inflation_rows,
-        }.items():
-            actual_count = conn.execute(f'select count(*) from "{table}"').fetchone()[0]
+        for table in ["world_bank_gdp_raw", "world_bank_inflation_raw"]:
             iso_codes = {
                 row[0]
                 for row in conn.execute(
                     f'select distinct countryiso3code from "{table}"'
                 ).fetchall()
             }
-            require(
-                actual_count == expected_count,
-                f"SQLite table {table} has {actual_count} rows; expected {expected_count}",
-            )
             require(iso_codes == {"USA"}, f"SQLite table {table} should contain USA raw rows only")
 
 

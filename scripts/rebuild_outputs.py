@@ -32,6 +32,7 @@ SP500_MIN_MONTHS_BY_YEAR = {END_YEAR: 9}
 GOLD_MIN_DAYS_BY_YEAR = {START_YEAR: 80}
 DEFAULT_SP500_MIN_MONTHS = 12
 DEFAULT_GOLD_MIN_DAYS = 200
+REGPLOT_SEED = 42
 
 DATA_DIR.mkdir(exist_ok=True)
 IMAGE_DIR.mkdir(exist_ok=True)
@@ -407,16 +408,32 @@ def save_figures(merged: pd.DataFrame) -> None:
     sns.set_theme(style="whitegrid")
 
     plt.figure(figsize=(8, 5))
-    sns.regplot(data=merged, x="gdp_growth", y="PE10")
-    plt.title("Shiller PE10 vs. Annual U.S. GDP Growth")
+    sns.regplot(data=merged, x="gdp_growth", y="PE10", seed=REGPLOT_SEED)
+    plt.title("Shiller PE10 vs. Annual U.S. GDP Growth (2000-2023)")
+    plt.xlabel("GDP Growth Rate (%)")
+    plt.ylabel("Shiller PE10")
     plt.tight_layout()
     plt.savefig(IMAGE_DIR / "visual1_pe10_vs_gdp.png", dpi=150)
     plt.close()
 
     plt.figure(figsize=(8, 5))
-    sns.regplot(data=merged, x="inflation_rate", y="Long Interest Rate", label="10-year Treasury yield")
-    sns.regplot(data=merged, x="inflation_rate", y="cape_yield", label="CAPE yield proxy")
-    plt.title("Inflation vs. Yield Measures")
+    sns.regplot(
+        data=merged,
+        x="inflation_rate",
+        y="Long Interest Rate",
+        label="10-year Treasury yield",
+        seed=REGPLOT_SEED,
+    )
+    sns.regplot(
+        data=merged,
+        x="inflation_rate",
+        y="cape_yield",
+        label="CAPE yield proxy (100 / PE10)",
+        seed=REGPLOT_SEED,
+    )
+    plt.title("U.S. CPI Inflation vs. Long-Term Interest Rates & CAPE Yield (2000-2023)")
+    plt.xlabel("Annual CPI Inflation Rate (%)")
+    plt.ylabel("Yield (%)")
     plt.legend()
     plt.tight_layout()
     plt.savefig(IMAGE_DIR / "visual2_inflation_vs_yields.png", dpi=150)
@@ -437,7 +454,7 @@ def save_figures(merged: pd.DataFrame) -> None:
     ]
     plt.figure(figsize=(10, 7))
     sns.heatmap(merged[corr_cols].corr(), annot=True, fmt=".2f", cmap="coolwarm", center=0)
-    plt.title("Correlation Heatmap (Exploratory)")
+    plt.title("Correlation Heatmap of Macro and Market Indicators (2000-2023)")
     plt.tight_layout()
     plt.savefig(IMAGE_DIR / "visual3_correlation_heatmap.png", dpi=150)
     plt.close()
@@ -448,17 +465,32 @@ def save_figures(merged: pd.DataFrame) -> None:
         bins=[-np.inf, 2, 4, np.inf],
         labels=["Low (<2%)", "Moderate (2-4%)", "High (>4%)"],
     )
+    regime_summary = regimes.groupby("inflation_regime", observed=True).agg(
+        years=("Year", "count"),
+        sp500_n=("sp500_annual_avg_yoy_change", "count"),
+        gold_n=("gold_annual_avg_yoy_change", "count"),
+        sp500_avg_yoy=("sp500_annual_avg_yoy_change", "mean"),
+        gold_avg_yoy=("gold_annual_avg_yoy_change", "mean"),
+    )
     plot_data = (
-        regimes.groupby("inflation_regime", observed=True)[
-            ["sp500_annual_avg_yoy_change", "gold_annual_avg_yoy_change"]
-        ]
-        .mean()
-        .reset_index()
-        .melt(id_vars="inflation_regime", var_name="Series", value_name="Average YoY change")
+        regime_summary.reset_index()
+        .melt(
+            id_vars="inflation_regime",
+            value_vars=["sp500_avg_yoy", "gold_avg_yoy"],
+            var_name="Series",
+            value_name="Average YoY change",
+        )
+        .replace(
+            {
+                "sp500_avg_yoy": "S&P 500 annual-mean YoY",
+                "gold_avg_yoy": "Gold proxy annual-mean YoY",
+            }
+        )
     )
     plt.figure(figsize=(8, 5))
     sns.barplot(data=plot_data, x="inflation_regime", y="Average YoY change", hue="Series")
     plt.title("Average Annual-Mean Price Changes by Inflation Regime")
+    plt.ylabel("Average Change (%)")
     plt.tight_layout()
     plt.savefig(IMAGE_DIR / "visual4_inflation_regimes.png", dpi=150)
     plt.close()
@@ -468,7 +500,12 @@ def save_figures(merged: pd.DataFrame) -> None:
     lead_data["gdp_growth_lead1"] = lead_data["gdp_growth"].shift(-1)
     lag_data = lead_data.dropna(subset=["sp500_annual_avg_yoy_change", "gdp_growth_lead1"]).copy()
     plt.figure(figsize=(8, 5))
-    sns.regplot(data=lag_data, x="sp500_annual_avg_yoy_change", y="gdp_growth_lead1")
+    sns.regplot(
+        data=lag_data,
+        x="sp500_annual_avg_yoy_change",
+        y="gdp_growth_lead1",
+        seed=REGPLOT_SEED,
+    )
     plt.title("S&P 500 Annual-Average YoY Change (Year t) vs. Future GDP Growth (Year t+1)")
     plt.xlabel("S&P 500 YoY Change in Year t (%)")
     plt.ylabel("GDP Growth Rate in Year t+1 (%)")
