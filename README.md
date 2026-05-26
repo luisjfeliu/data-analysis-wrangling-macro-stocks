@@ -72,6 +72,8 @@ The project produces several exploratory plots and analyses:
 
 ## Installation and Requirements
 
+**Requires Python 3.11+**
+
 To run the project locally, ensure you have a Python environment with the required libraries installed:
 
 ```bash

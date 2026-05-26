@@ -388,6 +388,7 @@ def save_figures(merged: pd.DataFrame) -> None:
 def run_regression_model(df_merged: pd.DataFrame) -> None:
     """Run an OLS multiple linear regression model with advanced diagnostics from scratch."""
     import math
+    from scipy.stats import t, chi2
 
     df_reg = df_merged.dropna(subset=['PE10', 'gdp_growth', 'inflation_rate', 'Long Interest Rate']).copy()
     if df_reg.empty:
@@ -420,30 +421,28 @@ def run_regression_model(df_merged: pd.DataFrame) -> None:
 
     # HAC (Newey-West) Standard Errors (lag = 2)
     S = np.zeros((k + 1, k + 1))
-    for t in range(n):
-        xt = X_with_const[t, :].reshape(-1, 1)
-        S += (e[t] ** 2) * (xt @ xt.T)
+    for t_idx in range(n):
+        xt = X_with_const[t_idx, :].reshape(-1, 1)
+        S += (e[t_idx] ** 2) * (xt @ xt.T)
     for j in range(1, 3):
         weight = 1.0 - (j / 3.0)
-        for t in range(j, n):
-            xt = X_with_const[t, :].reshape(-1, 1)
-            xt_lag = X_with_const[t - j, :].reshape(-1, 1)
-            Gamma = e[t] * e[t - j] * (xt @ xt_lag.T)
+        for t_idx in range(j, n):
+            xt = X_with_const[t_idx, :].reshape(-1, 1)
+            xt_lag = X_with_const[t_idx - j, :].reshape(-1, 1)
+            Gamma = e[t_idx] * e[t_idx - j] * (xt @ xt_lag.T)
             S += weight * (Gamma + Gamma.T)
     cov_hac = XtX_inv @ S @ XtX_inv
     se_hac = np.sqrt(np.diagonal(cov_hac))
 
-    # t-statistics and two-tailed p-values (using HAC standard errors)
+    # t-statistics and two-tailed p-values (using HAC standard errors and t-distribution)
     t_stats_hac = beta / se_hac
+    df_resid = n - k - 1
+    p_vals_hac = [2.0 * t.sf(abs(t_stat), df=df_resid) for t_stat in t_stats_hac]
     
-    def normal_cdf(z):
-        return 0.5 * (1.0 + math.erf(z / math.sqrt(2.0)))
-    
-    p_vals_hac = [2.0 * (1.0 - normal_cdf(abs(t))) for t in t_stats_hac]
-    
-    # 95% Confidence Intervals using critical value of 1.96 (normal approximation)
-    ci_lower = beta - 1.96 * se_hac
-    ci_upper = beta + 1.96 * se_hac
+    # 95% Confidence Intervals using t-distribution critical value
+    t_critical = t.ppf(0.975, df=df_resid)
+    ci_lower = beta - t_critical * se_hac
+    ci_upper = beta + t_critical * se_hac
 
     # Variance Inflation Factors (VIF)
     vifs = []
@@ -465,6 +464,7 @@ def run_regression_model(df_merged: pd.DataFrame) -> None:
     skew = np.sum(((e - np.mean(e)) / e_std) ** 3) / n
     kurt = np.sum(((e - np.mean(e)) / e_std) ** 4) / n
     jb = (n / 6.0) * (skew ** 2 + 0.25 * ((kurt - 3.0) ** 2))
+    jb_p_value = chi2.sf(jb, df=2)
 
     print("====================================================================================================")
     print("                              MULTIPLE LINEAR REGRESSION ANALYSIS (OLS)")
@@ -474,7 +474,7 @@ def run_regression_model(df_merged: pd.DataFrame) -> None:
     print(f"Residual Sum of Squares (RSS):  {rss:<8.4f} | Total Sum of Squares (TSS):    {tss:.4f}")
     print(f"Residual Standard Error (RSE):  {rse:<8.4f} | R-squared (R2):                {r2:.4f}")
     print(f"Durbin-Watson (DW) Statistic:   {dw:<8.4f} | Adjusted R-squared:            {adj_r2:.4f}")
-    print(f"Jarque-Bera (JB) Statistic:     {jb:<8.4f} | JB p-value (approx):           {2.0 * (1.0 - normal_cdf(abs(math.sqrt(jb)))):.4f}")
+    print(f"Jarque-Bera (JB) Statistic:     {jb:<8.4f} | JB p-value:                    {jb_p_value:.4f}")
     print("----------------------------------------------------------------------------------------------------")
     print(f"{'Variable':<25}{'Coef':<10}{'Std Err (OLS)':<15}{'Std Err (HAC)':<15}{'t-stat (HAC)':<15}{'P>|t| (HAC)':<15}{'[95% Conf. Interval]':<20}")
     print("----------------------------------------------------------------------------------------------------")
