@@ -20,8 +20,9 @@ We investigate the relationships between:
 ## Important Data Notes
 
 - `data/world_bank_clean.csv` is expected to contain one row per US year.
+- The notebook and rebuild script first attempt the programmatic download/API steps, then use the committed raw files as cache fallbacks if a live source is unavailable during review.
 - The S&P 500 cleaning step treats `0.0` values in `Dividend`, `Earnings`, `Real Dividend`, `Real Earnings`, and `PE10` as missing placeholders. Annual averages are computed per column, so unavailable dividend/earnings fields do not cause otherwise valid monthly price, CPI, rate, or PE10 rows to be dropped.
-- The validation script enforces full year coverage from 2000-2023, with documented partial-year exceptions: S&P 500 has 9 monthly observations in 2023 in the source file, and gold futures data begins partway through 2000. Gold annual-average YoY changes are therefore suppressed for 2000 and 2001.
+- The validation script enforces full year coverage from 2000-2023, with documented partial-year exceptions: the 2023 S&P source rows contain placeholder values after September, leaving 9 valid months for price/CPI/rate/PE10 fields and 6 valid months for dividend/earnings fields after cleaning. Gold futures data begins partway through 2000, so gold annual-average YoY changes are suppressed for 2000 and 2001.
 - `sp500_annual_avg_yoy_change` and `gold_annual_avg_yoy_change` are year-over-year percentage changes in **annual average price levels**, not true calendar-year total returns. Use month-end/year-end values or total-return series if investment return precision is required.
 - `cape_yield` is computed as `100 / PE10`, so it is a **CAPE yield proxy**, not a conventional current earnings yield.
 - `cape_yield_minus_10y_yield` is a rough **CAPE yield minus 10-year yield spread**, not a full expected equity risk premium model.
@@ -54,7 +55,7 @@ We investigate the relationships between:
 │
 └── images/                              # Visualization files (PNGs)
     ├── visual1_pe10_vs_gdp.png          # Shiller PE10 vs. Annual GDP Growth
-    ├── visual2_inflation_vs_yields.png  # CPI Inflation vs. Long-Term Interest Rates & Dividend Yields
+    ├── visual2_inflation_vs_yields.png  # CPI Inflation vs. Long-Term Interest Rates & CAPE Yield
     ├── visual3_correlation_heatmap.png  # Correlation heatmap across macro and market indicators
     ├── visual4_inflation_regimes.png    # Gold proxy vs. S&P 500 annual-average changes by inflation regime
     ├── visual5_lagged_lead_gdp.png      # Exploratory lagged relationship visualization

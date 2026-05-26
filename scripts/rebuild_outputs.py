@@ -74,6 +74,14 @@ def fetch_world_bank_indicator(indicator: str, label: str) -> list:
     return payload
 
 
+def load_cached_world_bank_indicator(path: Path, label: str) -> list:
+    """Load a previously saved World Bank API response when the API is unavailable."""
+    payload = json.loads(path.read_text())
+    if len(payload) < 2 or payload[1] is None:
+        raise ValueError(f"Cached World Bank data is invalid for {label}: {path}")
+    return payload
+
+
 def normalize_world_bank_indicator(df: pd.DataFrame, value_col: str) -> pd.DataFrame:
     """Normalize nested World Bank country/indicator records."""
     out = pd.DataFrame(
@@ -161,11 +169,30 @@ def load_sp500() -> pd.DataFrame:
 
 
 def load_world_bank() -> pd.DataFrame:
-    gdp_data = fetch_world_bank_indicator("NY.GDP.MKTP.KD.ZG", "GDP growth")
-    inflation_data = fetch_world_bank_indicator("FP.CPI.TOTL.ZG", "CPI inflation")
+    gdp_path = DATA_DIR / "world_bank_gdp_raw.json"
+    inflation_path = DATA_DIR / "world_bank_inflation_raw.json"
+    try:
+        gdp_data = fetch_world_bank_indicator("NY.GDP.MKTP.KD.ZG", "GDP growth")
+        gdp_path.write_text(json.dumps(gdp_data, indent=2))
+    except (requests.RequestException, ValueError) as exc:
+        if gdp_path.exists():
+            print(f"World Bank GDP download failed ({exc}); using cached raw file at {gdp_path}.")
+            gdp_data = load_cached_world_bank_indicator(gdp_path, "GDP growth")
+        else:
+            raise
 
-    (DATA_DIR / "world_bank_gdp_raw.json").write_text(json.dumps(gdp_data, indent=2))
-    (DATA_DIR / "world_bank_inflation_raw.json").write_text(json.dumps(inflation_data, indent=2))
+    try:
+        inflation_data = fetch_world_bank_indicator("FP.CPI.TOTL.ZG", "CPI inflation")
+        inflation_path.write_text(json.dumps(inflation_data, indent=2))
+    except (requests.RequestException, ValueError) as exc:
+        if inflation_path.exists():
+            print(
+                "World Bank inflation download failed "
+                f"({exc}); using cached raw file at {inflation_path}."
+            )
+            inflation_data = load_cached_world_bank_indicator(inflation_path, "CPI inflation")
+        else:
+            raise
 
     df_gdp = normalize_world_bank_indicator(pd.DataFrame(gdp_data[1]), "gdp_growth")
     df_inflation = normalize_world_bank_indicator(pd.DataFrame(inflation_data[1]), "inflation_rate")
@@ -188,15 +215,25 @@ def load_world_bank() -> pd.DataFrame:
 
 
 def load_gold_proxy() -> pd.DataFrame:
-    df = yf.download(
-        "GC=F",
-        start=f"{START_YEAR}-01-01",
-        end=f"{END_YEAR + 1}-01-01",
-        progress=False,
-        auto_adjust=False,
-    )
-    if df.empty:
-        raise ValueError("No gold data returned from yfinance for GC=F")
+    raw_path = DATA_DIR / "gold_prices_raw.csv"
+    raw_is_cached_csv = False
+    try:
+        df = yf.download(
+            "GC=F",
+            start=f"{START_YEAR}-01-01",
+            end=f"{END_YEAR + 1}-01-01",
+            progress=False,
+            auto_adjust=False,
+        )
+        if df.empty:
+            raise ValueError("No gold data returned from yfinance for GC=F")
+    except Exception as exc:
+        if raw_path.exists():
+            print(f"Gold proxy download failed ({exc}); using cached raw file at {raw_path}.")
+            df = pd.read_csv(raw_path)
+            raw_is_cached_csv = True
+        else:
+            raise
 
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = [
@@ -204,8 +241,9 @@ def load_gold_proxy() -> pd.DataFrame:
             for col in df.columns.to_flat_index()
         ]
 
-    df = df.reset_index()
-    df.to_csv(DATA_DIR / "gold_prices_raw.csv", index=False)
+    if not raw_is_cached_csv:
+        df = df.reset_index()
+        df.to_csv(raw_path, index=False)
 
     date_col = first_matching_column(
         df.columns,
