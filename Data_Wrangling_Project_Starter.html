@@ -7985,7 +7985,7 @@ a.anchor-link {
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h3 id="1.1.-Problem-Statement"><strong>1.1.</strong> Problem Statement<a class="anchor-link" href="#1.1.-Problem-Statement">¶</a></h3><p>We investigate the relationships between US economic growth and inflation levels and financial asset pricing indicators. By programmatically gathering historical S&amp;P 500 metrics, World Bank GDP growth/inflation rates, and a Yahoo Finance gold futures price proxy, we build a cleaned annual dataset spanning 2000–2023. This enables us to conduct exploratory analysis on how equity valuations (Shiller PE10), interest yields, and commodity returns correspond to different macroeconomic regimes.</p>
+<h3 id="1.1.-Problem-Statement"><strong>1.1.</strong> Problem Statement<a class="anchor-link" href="#1.1.-Problem-Statement">¶</a></h3><p>We investigate the relationships between US economic growth and inflation levels and financial asset pricing indicators. By programmatically gathering historical S&amp;P 500 metrics, World Bank GDP growth/inflation rates, and a Yahoo Finance gold futures price proxy, we build a cleaned annual dataset spanning 2000–2023. This enables us to conduct exploratory analysis on how equity valuations (Shiller PE10), interest yields, and annual-average commodity price changes correspond to different macroeconomic regimes.</p>
 </div>
 </div>
 </div>
@@ -8340,7 +8340,7 @@ Inflation raw data: (24, 8)
 <li><code>Open</code>: Opening price for the day (float), indicating the price at market open.</li>
 <li><code>High</code>: High price for the day (float), the maximum price reached during trading.</li>
 <li><code>Low</code>: Low price for the day (float), the minimum price reached during trading.</li>
-<li><code>Close</code>: Closing price for the day (float), the primary price metric used for returns and asset valuations.</li>
+<li><code>Close</code>: Closing price for the day (float), the primary price metric used for annual-average price-change calculations and asset valuation comparisons.</li>
 <li><code>Volume</code>: Volume of transactions (float), indicating market liquidity and trading activity for the day.</li>
 </ul>
 </div>
@@ -8513,8 +8513,19 @@ Inflation raw data: (24, 8)
 <div class="jp-InputPrompt jp-InputArea-prompt">In [6]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Visual inspection of the early records in the raw S&amp;P 500 dataset</span>
-<span class="n">df_sp500_raw</span><span class="p">[[</span><span class="s1">'Date'</span><span class="p">,</span> <span class="s1">'PE10'</span><span class="p">]]</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+<div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Visual inspection: show rows where placeholder zeros appear in affected Shiller fields.</span>
+<span class="n">placeholder_zero_cols_assess</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"Dividend"</span><span class="p">,</span> <span class="s2">"Earnings"</span><span class="p">,</span> <span class="s2">"Real Dividend"</span><span class="p">,</span> <span class="s2">"Real Earnings"</span><span class="p">,</span> <span class="s2">"PE10"</span><span class="p">]</span>
+<span class="n">df_sp500_placeholder_view</span> <span class="o">=</span> <span class="n">df_sp500_raw</span><span class="p">[[</span><span class="s2">"Date"</span><span class="p">,</span> <span class="o">*</span><span class="n">placeholder_zero_cols_assess</span><span class="p">]]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+<span class="n">df_sp500_placeholder_view</span><span class="p">[</span><span class="s2">"Date"</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">df_sp500_placeholder_view</span><span class="p">[</span><span class="s2">"Date"</span><span class="p">],</span> <span class="n">errors</span><span class="o">=</span><span class="s2">"coerce"</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">placeholder_zero_cols_assess</span><span class="p">:</span>
+    <span class="n">df_sp500_placeholder_view</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_numeric</span><span class="p">(</span><span class="n">df_sp500_placeholder_view</span><span class="p">[</span><span class="n">col</span><span class="p">],</span> <span class="n">errors</span><span class="o">=</span><span class="s2">"coerce"</span><span class="p">)</span>
+
+<span class="n">early_pe10_placeholders</span> <span class="o">=</span> <span class="n">df_sp500_placeholder_view</span><span class="p">[</span><span class="n">df_sp500_placeholder_view</span><span class="p">[</span><span class="s2">"PE10"</span><span class="p">]</span><span class="o">.</span><span class="n">eq</span><span class="p">(</span><span class="mi">0</span><span class="p">)]</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">6</span><span class="p">)</span>
+<span class="n">analysis_window_placeholders</span> <span class="o">=</span> <span class="n">df_sp500_placeholder_view</span><span class="p">[</span>
+    <span class="n">df_sp500_placeholder_view</span><span class="p">[</span><span class="s2">"Date"</span><span class="p">]</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">year</span><span class="o">.</span><span class="n">between</span><span class="p">(</span><span class="n">START_YEAR</span><span class="p">,</span> <span class="n">END_YEAR</span><span class="p">)</span>
+    <span class="o">&amp;</span> <span class="n">df_sp500_placeholder_view</span><span class="p">[</span><span class="n">placeholder_zero_cols_assess</span><span class="p">]</span><span class="o">.</span><span class="n">eq</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="p">]</span>
+<span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">early_pe10_placeholders</span><span class="p">,</span> <span class="n">analysis_window_placeholders</span><span class="p">])</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">()</span>
 </pre></div>
 </div>
 </div>
@@ -8526,83 +8537,20 @@ Inflation raw data: (24, 8)
 <div class="jp-OutputArea jp-Cell-outputArea">
 <div class="jp-OutputArea-child jp-OutputArea-executeResult">
 <div class="jp-OutputPrompt jp-OutputArea-prompt">Out[6]:</div>
-<div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html" tabindex="0">
-<div>
-<style scoped="">
-    .dataframe tbody tr th:only-of-type {
-        vertical-align: middle;
-    }
-
-    .dataframe tbody tr th {
-        vertical-align: top;
-    }
-
-    .dataframe thead th {
-        text-align: right;
-    }
-</style>
-<table border="1" class="dataframe">
-<thead>
-<tr style="text-align: right;">
-<th></th>
-<th>Date</th>
-<th>PE10</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<th>0</th>
-<td>1871-01-01</td>
-<td>0.0</td>
-</tr>
-<tr>
-<th>1</th>
-<td>1871-02-01</td>
-<td>0.0</td>
-</tr>
-<tr>
-<th>2</th>
-<td>1871-03-01</td>
-<td>0.0</td>
-</tr>
-<tr>
-<th>3</th>
-<td>1871-04-01</td>
-<td>0.0</td>
-</tr>
-<tr>
-<th>4</th>
-<td>1871-05-01</td>
-<td>0.0</td>
-</tr>
-<tr>
-<th>5</th>
-<td>1871-06-01</td>
-<td>0.0</td>
-</tr>
-<tr>
-<th>6</th>
-<td>1871-07-01</td>
-<td>0.0</td>
-</tr>
-<tr>
-<th>7</th>
-<td>1871-08-01</td>
-<td>0.0</td>
-</tr>
-<tr>
-<th>8</th>
-<td>1871-09-01</td>
-<td>0.0</td>
-</tr>
-<tr>
-<th>9</th>
-<td>1871-10-01</td>
-<td>0.0</td>
-</tr>
-</tbody>
-</table>
-</div>
+<div class="jp-RenderedText jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/plain" tabindex="0">
+<pre>           Date  Dividend  Earnings  Real Dividend  Real Earnings   PE10
+0    1871-01-01      0.26       0.4           6.39           9.82   0.00
+1    1871-02-01      0.26       0.4           6.20           9.53   0.00
+2    1871-03-01      0.26       0.4           6.11           9.39   0.00
+3    1871-04-01      0.26       0.4           6.34           9.75   0.00
+4    1871-05-01      0.26       0.4           6.48           9.98   0.00
+5    1871-06-01      0.26       0.4           6.59          10.13   0.00
+1830 2023-07-01      0.00       0.0           0.00           0.00  30.89
+1831 2023-08-01      0.00       0.0           0.00           0.00  30.47
+1832 2023-09-01      0.00       0.0           0.00           0.00  30.81
+1833 2023-10-01      0.00       0.0           0.00           0.00   0.00
+1834 2023-11-01      0.00       0.0           0.00           0.00   0.00
+1835 2023-12-01      0.00       0.0           0.00           0.00   0.00</pre>
 </div>
 </div>
 </div>
@@ -8615,8 +8563,18 @@ Inflation raw data: (24, 8)
 <div class="jp-InputPrompt jp-InputArea-prompt">In [7]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Programmatic check: count the occurrences of 0.0 values in PE10</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">"Number of rows with PE10 == 0.0:"</span><span class="p">,</span> <span class="p">(</span><span class="n">df_sp500_raw</span><span class="p">[</span><span class="s1">'PE10'</span><span class="p">]</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+<div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Programmatic check: count exact 0.0 placeholders by affected column.</span>
+<span class="n">all_raw_zero_counts</span> <span class="o">=</span> <span class="n">df_sp500_placeholder_view</span><span class="p">[</span><span class="n">placeholder_zero_cols_assess</span><span class="p">]</span><span class="o">.</span><span class="n">eq</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+<span class="n">analysis_window_zero_counts</span> <span class="o">=</span> <span class="n">df_sp500_placeholder_view</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span>
+    <span class="n">df_sp500_placeholder_view</span><span class="p">[</span><span class="s2">"Date"</span><span class="p">]</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">year</span><span class="o">.</span><span class="n">between</span><span class="p">(</span><span class="n">START_YEAR</span><span class="p">,</span> <span class="n">END_YEAR</span><span class="p">),</span>
+    <span class="n">placeholder_zero_cols_assess</span><span class="p">,</span>
+<span class="p">]</span><span class="o">.</span><span class="n">eq</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+<span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
+    <span class="p">{</span>
+        <span class="s2">"zero_count_all_raw_rows"</span><span class="p">:</span> <span class="n">all_raw_zero_counts</span><span class="p">,</span>
+        <span class="s2">"zero_count_2000_2023_rows"</span><span class="p">:</span> <span class="n">analysis_window_zero_counts</span><span class="p">,</span>
+    <span class="p">}</span>
+<span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -8626,11 +8584,15 @@ Inflation raw data: (24, 8)
 <div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
 </div>
 <div class="jp-OutputArea jp-Cell-outputArea">
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>Number of rows with PE10 == 0.0: 152
-</pre>
+<div class="jp-OutputArea-child jp-OutputArea-executeResult">
+<div class="jp-OutputPrompt jp-OutputArea-prompt">Out[7]:</div>
+<div class="jp-RenderedText jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/plain" tabindex="0">
+<pre>               zero_count_all_raw_rows  zero_count_2000_2023_rows
+Dividend                            35                          6
+Earnings                            35                          6
+Real Dividend                       35                          6
+Real Earnings                       35                          6
+PE10                               152                          3</pre>
 </div>
 </div>
 </div>
@@ -8646,8 +8608,8 @@ Inflation raw data: (24, 8)
 <p><strong>Justification for Cleaning</strong>: A PE10 ratio of 0.0 is economically impossible and represents a missing data placeholder (since CAPE requires 10 years of historical earnings). The same treatment is applied to the affected dividend and earnings fields in the analysis window so placeholder zeros do not bias annual averages. These values are replaced with <code>NaN</code> so they are correctly handled as missing.</p>
 <p><strong>Justification for Assessment Methods</strong>:</p>
 <ul>
-<li><em>Visual Assessment (<code>.head(10)</code>)</em>: Suitable because it displays early historical records chronologically, enabling us to spot the first occurrence and extent of the <code>0.0</code> placeholders.</li>
-<li><em>Programmatic Assessment (exact <code>0.0</code> check)</em>: Suitable because it systematically scans every row in the dataset and returns the exact count of invalid zero values, confirming that this is a systematic data entry issue across the columns.</li>
+<li><em>Visual Assessment (sample rows with any affected <code>0.0</code> placeholder)</em>: Suitable because it displays representative raw rows where the placeholder pattern appears, including the early historical <code>PE10</code> placeholders and the analysis-window dividend/earnings placeholders.</li>
+<li><em>Programmatic Assessment (exact <code>0.0</code> counts by affected column)</em>: Suitable because it systematically scans every affected field and returns the exact count of invalid zero values, confirming which columns are impacted in the full raw dataset and in the 2000-2023 analysis window.</li>
 </ul>
 </div>
 </div>
@@ -9183,7 +9145,7 @@ Min Year: 2000 Max Year: 2023
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<p>Justification: Replacing 0.0 placeholders in <code>PE10</code> with <code>NaN</code> ensures that missing ratio data is correctly treated as missing, preventing incorrect statistical summaries. Limiting the dates to 2000–2023 aligns the data with our research window.</p>
+<p>Justification: Replacing 0.0 placeholders in <code>PE10</code>, dividend, and earnings fields with <code>NaN</code> ensures unavailable values are treated as missing, preventing incorrect statistical summaries and biased annual averages. Limiting the dates to 2000–2023 aligns the data with our research window.</p>
 </div>
 </div>
 </div>
@@ -9895,7 +9857,7 @@ Merged annual dataset shape: (24, 17)
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
 <p><em>Research question:</em>
-How do macroeconomic growth and inflation trends in the United States relate to historical S&amp;P 500 stock market valuations, long-term interest rates, and commodity returns (gold futures proxy)?</p>
+How do macroeconomic growth and inflation trends in the United States relate to historical S&amp;P 500 stock market valuations, long-term interest rates, and annual-average commodity price changes (gold futures proxy)?</p>
 </div>
 </div>
 </div>
@@ -10506,8 +10468,8 @@ The inflation-regime visual shows that average annual-mean gold futures/proxy pr
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
 <h3 id="Lead-Lag-Analysis-and-Interpretation"><strong>Lead-Lag Analysis and Interpretation</strong><a class="anchor-link" href="#Lead-Lag-Analysis-and-Interpretation">¶</a></h3><ul>
-<li><strong>Correlation Coefficients:</strong> The same-year (contemporaneous) correlation between the S&amp;P 500 YoY price change and GDP growth is moderate-to-strong at <strong>r = 0.61</strong>. In contrast, the lead-lag correlation (S&amp;P 500 in year $t$ vs. GDP growth in year $t+1$) is much weaker at <strong>r = 0.21</strong>. This indicates that stock market returns and economic growth are mostly contemporaneous in this sample, and the lead relationship is very weak.</li>
-<li><strong>The 2020 Recovery Inconsistency:</strong> The analysis highlights the limitation of annual average metrics. While 2008 saw a large contraction in stock prices (-21.7%) that correctly aligned with the 2009 recession, 2020 recorded a positive S&amp;P 500 annual average change of <strong>+10.5%</strong> despite the brief Covid-19 recession. This occurred because the rapid market recovery in the second half of 2020 offset the initial crash, creating a positive annual average that masks intra-year economic contractions.</li>
+<li><strong>Correlation Coefficients:</strong> The same-year (contemporaneous) correlation between the S&amp;P 500 YoY price change and GDP growth is moderate-to-strong at <strong>r = 0.61</strong>. In contrast, the lead-lag correlation (S&amp;P 500 in year $t$ vs. GDP growth in year $t+1$) is much weaker at <strong>r = 0.21</strong>. This indicates that S&amp;P 500 annual-average price changes and economic growth are mostly contemporaneous in this sample, and the lead relationship is very weak.</li>
+<li><strong>The 2020 Recovery Inconsistency:</strong> The analysis highlights the limitation of annual average metrics. While 2008 saw a large contraction in S&amp;P 500 annual-average price levels (<strong>-17.3%</strong>) before the weak 2009 GDP period, 2020 recorded a positive S&amp;P 500 annual-average change of <strong>+10.5%</strong> despite the brief Covid-19 recession. This occurred because the rapid market recovery in the second half of 2020 offset the initial crash, creating a positive annual average that masks intra-year economic contractions.</li>
 <li><strong>Analytical Caveat:</strong> A correlation of r = 0.21 on a sample size of 22 lead-lag observations only <em>suggests in this sample</em> that equity market trends align weakly with subsequent economic growth. It does <em>not</em> demonstrate that equity markets act as a reliable leading indicator. Establishing a genuine leading relationship would require higher-frequency data (monthly/quarterly) and a formal Granger-causality test.</li>
 </ul>
 </div>
@@ -10971,14 +10933,14 @@ Variance Inflation Factors (VIF) for Collinearity Check:
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
 <p><strong>Multiple Linear Regression Interpretation</strong>:</p>
 <ul>
-<li><strong>Goodness of Fit ($R^2 pprox 0.3111$, Adjusted $R^2 pprox 0.2078$)</strong>: The three macroeconomic factors collectively explain approximately 31.1% of annual PE10 variation in this 24-year sample. This is useful as an exploratory summary, but the small annual sample and persistent valuation levels mean it should not be interpreted as a causal valuation model.</li>
-<li><strong>GDP Growth ($eta = 1.1546$, HAC $SE = 0.5468$, $p pprox 0.0475$)</strong>: Holding inflation and interest rates constant, a 1 percentage-point increase in annual GDP growth is associated with a 1.15 increase in PE10 in this fitted sample. The HAC p-value is near the 5% threshold, so this should be described as suggestive rather than definitive evidence.</li>
-<li><strong>Inflation Rate ($eta = 0.8412$, HAC $SE = 0.2528$, $p pprox 0.0034$)</strong>: Higher annual inflation is positively associated with PE10 in this joint model, but this coefficient should be interpreted cautiously because the sample is short and concentrated in a modern low-to-moderate inflation era with only a few high-inflation years.</li>
-<li><strong>Long Interest Rate ($eta = 0.2203$, HAC $SE = 1.3157$, $p pprox 0.8687$)</strong>: The coefficient is positive but statistically insignificant, so this model does not provide evidence that long-term interest rates independently explain PE10 after controlling for GDP growth and inflation.</li>
+<li><strong>Goodness of Fit ($R^2 \approx 0.3111$, Adjusted $R^2 \approx 0.2078$)</strong>: The three macroeconomic factors collectively explain approximately 31.1% of annual PE10 variation in this 24-year sample. This is useful as an exploratory summary, but the small annual sample and persistent valuation levels mean it should not be interpreted as a causal valuation model.</li>
+<li><strong>GDP Growth ($\beta = 1.1546$, HAC $SE = 0.5468$, $p \approx 0.0475$)</strong>: Holding inflation and interest rates constant, a 1 percentage-point increase in annual GDP growth is associated with a 1.15 increase in PE10 in this fitted sample. The HAC p-value is near the 5% threshold, so this should be described as suggestive rather than definitive evidence.</li>
+<li><strong>Inflation Rate ($\beta = 0.8412$, HAC $SE = 0.2528$, $p \approx 0.0034$)</strong>: Higher annual inflation is positively associated with PE10 in this joint model, but this coefficient should be interpreted cautiously because the sample is short and concentrated in a modern low-to-moderate inflation era with only a few high-inflation years.</li>
+<li><strong>Long Interest Rate ($\beta = 0.2203$, HAC $SE = 1.3157$, $p \approx 0.8687$)</strong>: The coefficient is positive but statistically insignificant, so this model does not provide evidence that long-term interest rates independently explain PE10 after controlling for GDP growth and inflation.</li>
 <li><strong>Diagnostics Check:</strong><ul>
 <li><strong>Residual Autocorrelation (Durbin-Watson = 0.5268):</strong> The very low DW statistic indicates strong positive autocorrelation in residuals. Newey-West HAC standard errors adjust the reported uncertainty under time-series assumptions, but they do not remove the autocorrelation or make the model causal.</li>
 <li><strong>Multicollinearity (VIFs &lt; 1.25):</strong> The Variance Inflation Factors are all below 1.25, indicating low multicollinearity among GDP growth, inflation, and interest rates in this annual sample.</li>
-<li><strong>Residual Normality (Jarque-Bera = 3.2212, $p pprox 0.1998$):</strong> The JB test is not significant at the 5% level, so we do not reject residual normality; however, the test has limited power with only 24 observations.</li>
+<li><strong>Residual Normality (Jarque-Bera = 3.2212, $p \approx 0.1998$):</strong> The JB test is not significant at the 5% level, so we do not reject residual normality; however, the test has limited power with only 24 observations.</li>
 </ul>
 </li>
 </ul>
