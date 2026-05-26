@@ -1,7 +1,7 @@
-pandas
-numpy
-requests
-matplotlib
-seaborn
-yfinance
+pandas==3.0.3
+numpy==2.4.6
+requests==2.34.2
+matplotlib==3.10.9
+seaborn==0.13.2
+yfinance==1.4.0
 jupyter

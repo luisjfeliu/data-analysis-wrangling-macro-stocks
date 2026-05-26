@@ -256,6 +256,8 @@ def build_merged_dataset(
     merged["dividend_yield"] = (merged["Dividend"] / merged["SP500"]) * 100
     merged["sp500_annual_avg_yoy_change"] = merged["SP500"].pct_change() * 100
     merged["gold_annual_avg_yoy_change"] = merged["gold_close"].pct_change() * 100
+    # Set gold YoY change to NaN for 2000 and 2001 due to partial data in 2000
+    merged.loc[merged["Year"] <= 2001, "gold_annual_avg_yoy_change"] = np.nan
     merged["gdp_growth_lag1"] = merged["gdp_growth"].shift(1)
 
     assert merged["Year"].is_unique
@@ -339,10 +341,15 @@ def save_figures(merged: pd.DataFrame) -> None:
     plt.savefig(IMAGE_DIR / "visual4_inflation_regimes.png", dpi=150)
     plt.close()
 
-    lag_data = merged.dropna(subset=["sp500_annual_avg_yoy_change", "gdp_growth"]).copy()
+    # Visual 5: S&P 500 YoY Change (Year t) vs. Future GDP Growth (Year t+1)
+    lead_data = merged.copy()
+    lead_data["gdp_growth_lead1"] = lead_data["gdp_growth"].shift(-1)
+    lag_data = lead_data.dropna(subset=["sp500_annual_avg_yoy_change", "gdp_growth_lead1"]).copy()
     plt.figure(figsize=(8, 5))
-    sns.regplot(data=lag_data, x="sp500_annual_avg_yoy_change", y="gdp_growth")
-    plt.title("S&P 500 Annual-Average YoY Change vs. Same-Year GDP Growth")
+    sns.regplot(data=lag_data, x="sp500_annual_avg_yoy_change", y="gdp_growth_lead1")
+    plt.title("S&P 500 Annual-Average YoY Change (Year t) vs. Future GDP Growth (Year t+1)")
+    plt.xlabel("S&P 500 YoY Change in Year t (%)")
+    plt.ylabel("GDP Growth Rate in Year t+1 (%)")
     plt.tight_layout()
     plt.savefig(IMAGE_DIR / "visual5_lagged_lead_gdp.png", dpi=150)
     plt.close()
@@ -379,7 +386,9 @@ def save_figures(merged: pd.DataFrame) -> None:
 
 
 def run_regression_model(df_merged: pd.DataFrame) -> None:
-    """Run an OLS multiple linear regression model using numpy.linalg.lstsq."""
+    """Run an OLS multiple linear regression model with advanced diagnostics from scratch."""
+    import math
+
     df_reg = df_merged.dropna(subset=['PE10', 'gdp_growth', 'inflation_rate', 'Long Interest Rate']).copy()
     if df_reg.empty:
         print("No rows available for regression model.")
@@ -395,34 +404,97 @@ def run_regression_model(df_merged: pd.DataFrame) -> None:
     beta, residuals, rank, s = np.linalg.lstsq(X_with_const, y, rcond=None)
 
     # Calculate statistical metrics (R2 and Adjusted R2)
-    y_mean = np.mean(y)
-    tss = np.sum((y - y_mean) ** 2)
-    rss = np.sum((y - X_with_const @ beta) ** 2)
-    r2 = 1.0 - (rss / tss)
-
     n = X.shape[0]
     k = X.shape[1]
+    y_mean = np.mean(y)
+    tss = np.sum((y - y_mean) ** 2)
+    e = y - X_with_const @ beta
+    rss = np.sum(e ** 2)
+    r2 = 1.0 - (rss / tss)
     adj_r2 = 1.0 - (1.0 - r2) * (n - 1) / (n - k - 1)
     rse = np.sqrt(rss / (n - k - 1))
 
-    print("======================================================================")
-    print("             MULTIPLE LINEAR REGRESSION ANALYSIS (OLS)")
-    print("======================================================================")
-    print(f"Dependent Variable: S&P 500 Shiller PE10")
-    print(f"Observations (n): {n}  |  Independent Variables (k): {k}")
-    print(f"Residual Sum of Squares (RSS): {rss:.4f}")
-    print(f"Total Sum of Squares (TSS):    {tss:.4f}")
-    print(f"Residual Standard Error (RSE): {rse:.4f}")
-    print(f"R-squared (R2):                {r2:.4f}")
-    print(f"Adjusted R-squared:            {adj_r2:.4f}")
-    print("----------------------------------------------------------------------")
-    print(f"{'Variable':<25}{'Coefficient':<15}")
-    print("----------------------------------------------------------------------")
-    print(f"{'Intercept (Constant)':<25}{beta[0]:<15.4f}")
-    print(f"{'GDP Growth (annual %)':<25}{beta[1]:<15.4f}")
-    print(f"{'Inflation Rate (annual %)':<25}{beta[2]:<15.4f}")
-    print(f"{'Long Interest Rate (%)':<25}{beta[3]:<15.4f}")
-    print("======================================================================")
+    # OLS Standard Errors
+    XtX_inv = np.linalg.inv(X_with_const.T @ X_with_const)
+    se_ols = np.sqrt((rse ** 2) * np.diagonal(XtX_inv))
+
+    # HAC (Newey-West) Standard Errors (lag = 2)
+    S = np.zeros((k + 1, k + 1))
+    for t in range(n):
+        xt = X_with_const[t, :].reshape(-1, 1)
+        S += (e[t] ** 2) * (xt @ xt.T)
+    for j in range(1, 3):
+        weight = 1.0 - (j / 3.0)
+        for t in range(j, n):
+            xt = X_with_const[t, :].reshape(-1, 1)
+            xt_lag = X_with_const[t - j, :].reshape(-1, 1)
+            Gamma = e[t] * e[t - j] * (xt @ xt_lag.T)
+            S += weight * (Gamma + Gamma.T)
+    cov_hac = XtX_inv @ S @ XtX_inv
+    se_hac = np.sqrt(np.diagonal(cov_hac))
+
+    # t-statistics and two-tailed p-values (using HAC standard errors)
+    t_stats_hac = beta / se_hac
+    
+    def normal_cdf(z):
+        return 0.5 * (1.0 + math.erf(z / math.sqrt(2.0)))
+    
+    p_vals_hac = [2.0 * (1.0 - normal_cdf(abs(t))) for t in t_stats_hac]
+    
+    # 95% Confidence Intervals using critical value of 1.96 (normal approximation)
+    ci_lower = beta - 1.96 * se_hac
+    ci_upper = beta + 1.96 * se_hac
+
+    # Variance Inflation Factors (VIF)
+    vifs = []
+    for i in range(k):
+        y_v = X[:, i]
+        X_v = np.delete(X, i, axis=1)
+        X_v_c = np.hstack([np.ones((n, 1)), X_v])
+        b_v, _, _, _ = np.linalg.lstsq(X_v_c, y_v, rcond=None)
+        rss_v = np.sum((y_v - X_v_c @ b_v) ** 2)
+        tss_v = np.sum((y_v - np.mean(y_v)) ** 2)
+        r2_v = 1.0 - (rss_v / tss_v)
+        vifs.append(1.0 / (1.0 - r2_v))
+
+    # Durbin-Watson statistic for residual autocorrelation
+    dw = np.sum((e[1:] - e[:-1]) ** 2) / rss
+
+    # Jarque-Bera statistic for normality of residuals
+    e_std = np.std(e)
+    skew = np.sum(((e - np.mean(e)) / e_std) ** 3) / n
+    kurt = np.sum(((e - np.mean(e)) / e_std) ** 4) / n
+    jb = (n / 6.0) * (skew ** 2 + 0.25 * ((kurt - 3.0) ** 2))
+
+    print("====================================================================================================")
+    print("                              MULTIPLE LINEAR REGRESSION ANALYSIS (OLS)")
+    print("====================================================================================================")
+    print(f"Dependent Variable:             S&P 500 Shiller PE10")
+    print(f"Observations (n):               {n:<8} | Independent Variables (k): {k}")
+    print(f"Residual Sum of Squares (RSS):  {rss:<8.4f} | Total Sum of Squares (TSS):    {tss:.4f}")
+    print(f"Residual Standard Error (RSE):  {rse:<8.4f} | R-squared (R2):                {r2:.4f}")
+    print(f"Durbin-Watson (DW) Statistic:   {dw:<8.4f} | Adjusted R-squared:            {adj_r2:.4f}")
+    print(f"Jarque-Bera (JB) Statistic:     {jb:<8.4f} | JB p-value (approx):           {2.0 * (1.0 - normal_cdf(abs(math.sqrt(jb)))):.4f}")
+    print("----------------------------------------------------------------------------------------------------")
+    print(f"{'Variable':<25}{'Coef':<10}{'Std Err (OLS)':<15}{'Std Err (HAC)':<15}{'t-stat (HAC)':<15}{'P>|t| (HAC)':<15}{'[95% Conf. Interval]':<20}")
+    print("----------------------------------------------------------------------------------------------------")
+    
+    var_names = [
+        "Intercept (Constant)",
+        "GDP Growth (annual %)",
+        "Inflation Rate (annual %)",
+        "Long Interest Rate (%)"
+    ]
+    
+    for i in range(len(var_names)):
+        print(f"{var_names[i]:<25}{beta[i]:<10.4f}{se_ols[i]:<15.4f}{se_hac[i]:<15.4f}{t_stats_hac[i]:<15.4f}{p_vals_hac[i]:<15.4f}[{ci_lower[i]:.4f}, {ci_upper[i]:.4f}]")
+        
+    print("----------------------------------------------------------------------------------------------------")
+    print("Variance Inflation Factors (VIF) for Collinearity Check:")
+    print(f"  - GDP Growth VIF:             {vifs[0]:.4f} (VIF < 5 indicates low multicollinearity)")
+    print(f"  - Inflation Rate VIF:         {vifs[1]:.4f}")
+    print(f"  - Long Interest Rate VIF:     {vifs[2]:.4f}")
+    print("====================================================================================================")
 
 
 def main() -> None:

@@ -80,7 +80,7 @@ def validate_macro_stock_merged() -> None:
         "Merged output has missing required analytical values",
     )
     require(pd.isna(df.loc[df["Year"] == 2000, "sp500_annual_avg_yoy_change"]).all(), "First S&P YoY change should be NA")
-    require(pd.isna(df.loc[df["Year"] == 2000, "gold_annual_avg_yoy_change"]).all(), "First gold YoY change should be NA")
+    require(pd.isna(df.loc[df["Year"] <= 2001, "gold_annual_avg_yoy_change"]).all(), "Gold YoY change for 2000 and 2001 should be NA due to partial 2000 data")
     require(pd.isna(df.loc[df["Year"] == 2000, "gdp_growth_lag1"]).all(), "First GDP lag should be NA")
 
 
