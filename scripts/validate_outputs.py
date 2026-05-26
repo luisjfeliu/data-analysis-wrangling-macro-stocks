@@ -5,7 +5,6 @@ distort the notebook's analysis: duplicate merge keys, blank World Bank ISO code
 unexpected country rows, missing required values, and ambiguous return labeling.
 """
 
-from __future__ import annotations
 
 from pathlib import Path
 

@@ -8,7 +8,6 @@ three issues found during review:
 3. Rename ambiguous engineered columns so they describe the actual calculation.
 """
 
-from __future__ import annotations
 
 import json
 import sqlite3
@@ -348,6 +347,53 @@ def save_figures(merged: pd.DataFrame) -> None:
     plt.close()
 
 
+def run_regression_model(df_merged: pd.DataFrame) -> None:
+    """Run an OLS multiple linear regression model using numpy.linalg.lstsq."""
+    df_reg = df_merged.dropna(subset=['PE10', 'gdp_growth', 'inflation_rate', 'Long Interest Rate']).copy()
+    if df_reg.empty:
+        print("No rows available for regression model.")
+        return
+
+    X = df_reg[['gdp_growth', 'inflation_rate', 'Long Interest Rate']].values
+    y = df_reg['PE10'].values
+
+    # Add a column of ones to serve as the intercept term
+    X_with_const = np.hstack([np.ones((X.shape[0], 1)), X])
+
+    # Solve normal equation: beta = (X^T X)^-1 X^T y
+    beta, residuals, rank, s = np.linalg.lstsq(X_with_const, y, rcond=None)
+
+    # Calculate statistical metrics (R2 and Adjusted R2)
+    y_mean = np.mean(y)
+    tss = np.sum((y - y_mean) ** 2)
+    rss = np.sum((y - X_with_const @ beta) ** 2)
+    r2 = 1.0 - (rss / tss)
+
+    n = X.shape[0]
+    k = X.shape[1]
+    adj_r2 = 1.0 - (1.0 - r2) * (n - 1) / (n - k - 1)
+    rse = np.sqrt(rss / (n - k - 1))
+
+    print("======================================================================")
+    print("             MULTIPLE LINEAR REGRESSION ANALYSIS (OLS)")
+    print("======================================================================")
+    print(f"Dependent Variable: S&P 500 Shiller PE10")
+    print(f"Observations (n): {n}  |  Independent Variables (k): {k}")
+    print(f"Residual Sum of Squares (RSS): {rss:.4f}")
+    print(f"Total Sum of Squares (TSS):    {tss:.4f}")
+    print(f"Residual Standard Error (RSE): {rse:.4f}")
+    print(f"R-squared (R2):                {r2:.4f}")
+    print(f"Adjusted R-squared:            {adj_r2:.4f}")
+    print("----------------------------------------------------------------------")
+    print(f"{'Variable':<25}{'Coefficient':<15}")
+    print("----------------------------------------------------------------------")
+    print(f"{'Intercept (Constant)':<25}{beta[0]:<15.4f}")
+    print(f"{'GDP Growth (annual %)':<25}{beta[1]:<15.4f}")
+    print(f"{'Inflation Rate (annual %)':<25}{beta[2]:<15.4f}")
+    print(f"{'Long Interest Rate (%)':<25}{beta[3]:<15.4f}")
+    print("======================================================================")
+
+
 def main() -> None:
     sp500_clean = load_sp500()
     world_bank_clean = load_world_bank()
@@ -355,6 +401,7 @@ def main() -> None:
     merged = build_merged_dataset(sp500_clean, world_bank_clean, gold_clean)
     store_sqlite(sp500_clean, world_bank_clean, gold_clean, merged)
     save_figures(merged)
+    run_regression_model(merged)
     print("Rebuilt cleaned CSVs, merged output, SQLite database, and figures.")
 
 
