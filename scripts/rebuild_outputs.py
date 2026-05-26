@@ -10,6 +10,7 @@ issues found during review:
 5. Label S&P annual metrics with the number of aligned months used.
 6. Store current raw, cleaned, and merged tables in SQLite.
 7. Keep regenerated figures aligned with the executed notebook.
+8. Compute dividend yield on aligned Dividend/SP500 months and suppress partial-year S&P YoY.
 """
 
 
@@ -339,7 +340,11 @@ def build_merged_dataset(
     sp500_months_used = (
         sp500_clean.assign(Year=sp500_clean["Date"].dt.year)
         .groupby("Year", as_index=False)
-        .agg(sp500_months_used=("SP500", "count"))
+        .agg(
+            sp500_months_used=("SP500", "count"),
+            dividend_months_used=("Dividend", "count"),
+            earnings_months_used=("Earnings", "count"),
+        )
     )
     sp500_annual = pd.merge(
         sp500_annual,
@@ -352,6 +357,24 @@ def build_merged_dataset(
         sp500_annual["sp500_months_used"] == DEFAULT_SP500_MIN_MONTHS,
         "full_year",
         "aligned_9_month_partial_year",
+    )
+    dividend_yield_annual = (
+        sp500_clean.dropna(subset=["SP500", "Dividend"])
+        .assign(Year=lambda frame: frame["Date"].dt.year)
+        .groupby("Year", as_index=False)
+        .agg(dividend_mean=("Dividend", "mean"), dividend_sp500_mean=("SP500", "mean"))
+    )
+    dividend_yield_annual["dividend_yield"] = (
+        dividend_yield_annual["dividend_mean"]
+        / dividend_yield_annual["dividend_sp500_mean"]
+        * 100
+    )
+    sp500_annual = pd.merge(
+        sp500_annual,
+        dividend_yield_annual[["Year", "dividend_yield"]],
+        on="Year",
+        how="inner",
+        validate="one_to_one",
     )
 
     gold_annual = (
@@ -393,8 +416,12 @@ def build_merged_dataset(
 
     merged["cape_yield"] = 100 / merged["PE10"]
     merged["cape_yield_minus_10y_yield"] = merged["cape_yield"] - merged["Long Interest Rate"]
-    merged["dividend_yield"] = (merged["Dividend"] / merged["SP500"]) * 100
     merged["sp500_annual_avg_yoy_change"] = merged["SP500"].pct_change() * 100
+    # Suppress YoY changes into partial S&P years so they are not compared to full-year changes.
+    merged.loc[
+        merged["sp500_months_used"] < DEFAULT_SP500_MIN_MONTHS,
+        "sp500_annual_avg_yoy_change",
+    ] = np.nan
     merged["gold_annual_avg_yoy_change"] = merged["gold_close"].pct_change() * 100
     # Set gold YoY change to NaN for 2000 and 2001 due to partial data in 2000
     merged.loc[merged["Year"] <= 2001, "gold_annual_avg_yoy_change"] = np.nan
@@ -407,6 +434,11 @@ def build_merged_dataset(
         == "aligned_9_month_partial_year"
     )
     assert merged.loc[merged["Year"] == END_YEAR, "sp500_months_used"].item() == 9
+    assert merged.loc[merged["Year"] == END_YEAR, "dividend_months_used"].item() == 6
+    assert merged.loc[merged["Year"] == END_YEAR, "earnings_months_used"].item() == 6
+    assert pd.isna(
+        merged.loc[merged["Year"] == END_YEAR, "sp500_annual_avg_yoy_change"]
+    ).all()
     assert merged[
         ["SP500", "Dividend", "Earnings", "PE10", "gdp_growth", "inflation_rate", "gold_close"]
     ].notna().all().all()

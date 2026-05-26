@@ -241,6 +241,8 @@ def validate_macro_stock_merged() -> None:
         "cape_yield",
         "cape_yield_minus_10y_yield",
         "sp500_months_used",
+        "dividend_months_used",
+        "earnings_months_used",
         "sp500_coverage_label",
         "sp500_annual_avg_yoy_change",
         "gold_annual_avg_yoy_change",
@@ -265,6 +267,14 @@ def validate_macro_stock_merged() -> None:
         "Merged output should label 2023 S&P metrics as using 9 aligned months",
     )
     require(
+        df.loc[df["Year"] == END_YEAR, "dividend_months_used"].eq(6).all(),
+        "Merged output should label 2023 dividend metrics as using 6 aligned months",
+    )
+    require(
+        df.loc[df["Year"] == END_YEAR, "earnings_months_used"].eq(6).all(),
+        "Merged output should label 2023 earnings metrics as using 6 aligned months",
+    )
+    require(
         df.loc[df["Year"] == END_YEAR, "sp500_coverage_label"]
         .eq("aligned_9_month_partial_year")
         .all(),
@@ -273,6 +283,48 @@ def validate_macro_stock_merged() -> None:
     require(
         df.loc[df["Year"] < END_YEAR, "sp500_coverage_label"].eq("full_year").all(),
         "Merged output should label pre-2023 S&P metrics as full-year values",
+    )
+    require(
+        df.loc[
+            df["Year"] < END_YEAR,
+            ["sp500_months_used", "dividend_months_used", "earnings_months_used"],
+        ]
+        .eq(DEFAULT_SP500_MIN_MONTHS)
+        .all()
+        .all(),
+        "Merged output should label pre-2023 S&P, dividend, and earnings metrics as 12-month values",
+    )
+    sp500_clean = pd.read_csv(DATA_DIR / "sp500_shiller_clean.csv")
+    sp500_clean["Date"] = pd.to_datetime(sp500_clean["Date"], errors="coerce")
+    expected_dividend_yield = (
+        sp500_clean.dropna(subset=["SP500", "Dividend"])
+        .assign(Year=lambda frame: frame["Date"].dt.year)
+        .groupby("Year", as_index=False)
+        .agg(dividend_mean=("Dividend", "mean"), dividend_sp500_mean=("SP500", "mean"))
+    )
+    expected_dividend_yield["expected_dividend_yield"] = (
+        expected_dividend_yield["dividend_mean"]
+        / expected_dividend_yield["dividend_sp500_mean"]
+        * 100
+    )
+    dividend_yield_check = pd.merge(
+        df[["Year", "dividend_yield"]],
+        expected_dividend_yield[["Year", "expected_dividend_yield"]],
+        on="Year",
+        how="inner",
+        validate="one_to_one",
+    )
+    require(
+        len(dividend_yield_check) == len(df),
+        "Dividend yield validation should cover every merged year",
+    )
+    max_yield_diff = (
+        dividend_yield_check["dividend_yield"]
+        - dividend_yield_check["expected_dividend_yield"]
+    ).abs().max()
+    require(
+        max_yield_diff < 1e-10,
+        "Merged dividend_yield should use months where both Dividend and SP500 are available",
     )
     require(
         df[
@@ -294,10 +346,19 @@ def validate_macro_stock_merged() -> None:
         "Merged output has missing required analytical values",
     )
     require(pd.isna(df.loc[df["Year"] == START_YEAR, "sp500_annual_avg_yoy_change"]).all(), "First S&P YoY change should be NA")
+    require(pd.isna(df.loc[df["Year"] == END_YEAR, "sp500_annual_avg_yoy_change"]).all(), "Partial-year 2023 S&P YoY change should be NA")
     require(pd.isna(df.loc[df["Year"] <= START_YEAR + 1, "gold_annual_avg_yoy_change"]).all(), "Gold YoY change for 2000 and 2001 should be NA due to partial 2000 data")
     require(pd.isna(df.loc[df["Year"] == START_YEAR, "gdp_growth_lag1"]).all(), "First GDP lag should be NA")
     require(pd.isna(df.loc[df["Year"] == END_YEAR, "gdp_growth_lead1"]).all(), "Last GDP lead should be NA")
-    require(df.loc[df["Year"] > START_YEAR, "sp500_annual_avg_yoy_change"].notna().all(), "Non-boundary S&P YoY change values should not be NaN")
+    require(
+        df.loc[
+            df["Year"].between(START_YEAR + 1, END_YEAR - 1),
+            "sp500_annual_avg_yoy_change",
+        ]
+        .notna()
+        .all(),
+        "Full-year non-boundary S&P YoY change values should not be NaN",
+    )
     require(df.loc[df["Year"] > START_YEAR + 1, "gold_annual_avg_yoy_change"].notna().all(), "Non-boundary gold YoY change values should not be NaN")
     require(df.loc[df["Year"] > START_YEAR, "gdp_growth_lag1"].notna().all(), "Non-boundary GDP lag values should not be NaN")
     require(df.loc[df["Year"] < END_YEAR, "gdp_growth_lead1"].notna().all(), "Non-boundary GDP lead values should not be NaN")
