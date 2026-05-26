@@ -1,11 +1,13 @@
 """Rebuild cleaned data, merged outputs, SQLite tables, and figures.
 
 This script is the source of truth for the corrected notebook workflow. It fixes
-three issues found during review:
+issues found during review:
 
 1. Fetch World Bank data directly for USA instead of country/all.
 2. Validate every annual merge with validate='one_to_one'.
 3. Rename ambiguous engineered columns so they describe the actual calculation.
+4. Store current raw, cleaned, and merged tables in SQLite.
+5. Keep regenerated figures aligned with the executed notebook.
 """
 
 
@@ -95,6 +97,17 @@ def normalize_world_bank_indicator(df: pd.DataFrame, value_col: str) -> pd.DataF
         }
     )
     out["countryiso3code"] = out["countryiso3code"].astype("string").str.strip()
+    return out
+
+
+def prepare_sqlite_frame(df: pd.DataFrame) -> pd.DataFrame:
+    """Convert nested raw API objects to JSON strings before SQLite storage."""
+    out = df.copy()
+    for col in out.columns:
+        if out[col].map(lambda value: isinstance(value, (dict, list))).any():
+            out[col] = out[col].map(
+                lambda value: json.dumps(value) if isinstance(value, (dict, list)) else value
+            )
     return out
 
 
@@ -364,7 +377,26 @@ def store_sqlite(
     gold_clean: pd.DataFrame,
     merged: pd.DataFrame,
 ) -> None:
+    raw_sp500 = pd.read_csv(DATA_DIR / "sp500_shiller_raw.csv")
+    raw_gold = pd.read_csv(DATA_DIR / "gold_prices_raw.csv")
+    raw_gdp = pd.DataFrame(
+        load_cached_world_bank_indicator(DATA_DIR / "world_bank_gdp_raw.json", "GDP growth")[1]
+    )
+    raw_inflation = pd.DataFrame(
+        load_cached_world_bank_indicator(
+            DATA_DIR / "world_bank_inflation_raw.json", "CPI inflation"
+        )[1]
+    )
+
     with sqlite3.connect(DATA_DIR / "macro_stock_data.db") as conn:
+        raw_sp500.to_sql("sp500_shiller_raw", conn, if_exists="replace", index=False)
+        prepare_sqlite_frame(raw_gdp).to_sql(
+            "world_bank_gdp_raw", conn, if_exists="replace", index=False
+        )
+        prepare_sqlite_frame(raw_inflation).to_sql(
+            "world_bank_inflation_raw", conn, if_exists="replace", index=False
+        )
+        raw_gold.to_sql("gold_prices_raw", conn, if_exists="replace", index=False)
         sp500_clean.to_sql("sp500_shiller_clean", conn, if_exists="replace", index=False)
         world_bank_clean.to_sql("world_bank_clean", conn, if_exists="replace", index=False)
         gold_clean.to_sql("gold_prices_clean", conn, if_exists="replace", index=False)
@@ -398,6 +430,7 @@ def save_figures(merged: pd.DataFrame) -> None:
         "Long Interest Rate",
         "cape_yield",
         "cape_yield_minus_10y_yield",
+        "dividend_yield",
         "gold_close",
         "sp500_annual_avg_yoy_change",
         "gold_annual_avg_yoy_change",

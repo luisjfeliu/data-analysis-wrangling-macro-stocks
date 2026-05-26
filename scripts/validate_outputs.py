@@ -1,11 +1,14 @@
-"""Validate committed cleaned and merged data outputs.
+"""Validate committed raw, cleaned, merged, and SQLite data outputs.
 
 These checks are intentionally lightweight and focus on issues that can silently
 distort the notebook's analysis: duplicate merge keys, blank World Bank ISO codes,
-unexpected country rows, missing required values, and ambiguous return labeling.
+unexpected country rows, missing required values, ambiguous return labeling, and
+stale database tables.
 """
 
 
+import json
+import sqlite3
 from pathlib import Path
 
 import pandas as pd
@@ -206,11 +209,75 @@ def validate_macro_stock_merged() -> None:
     require(df.loc[df["Year"] > START_YEAR, "gdp_growth_lag1"].notna().all(), "Non-boundary GDP lag values should not be NaN")
 
 
+def validate_sqlite_store() -> None:
+    path = DATA_DIR / "macro_stock_data.db"
+    require(path.exists(), f"SQLite data store is missing: {path}")
+
+    expected_tables = {
+        "sp500_shiller_raw",
+        "world_bank_gdp_raw",
+        "world_bank_inflation_raw",
+        "gold_prices_raw",
+        "sp500_shiller_clean",
+        "world_bank_clean",
+        "gold_prices_clean",
+        "macro_stock_merged",
+    }
+    with sqlite3.connect(path) as conn:
+        actual_tables = {
+            row[0]
+            for row in conn.execute(
+                "select name from sqlite_master where type='table'"
+            ).fetchall()
+        }
+        require(
+            expected_tables.issubset(actual_tables),
+            f"SQLite data store is missing tables: {sorted(expected_tables - actual_tables)}",
+        )
+
+        csv_row_counts = {
+            "sp500_shiller_raw": len(pd.read_csv(DATA_DIR / "sp500_shiller_raw.csv")),
+            "gold_prices_raw": len(pd.read_csv(DATA_DIR / "gold_prices_raw.csv")),
+            "sp500_shiller_clean": len(pd.read_csv(DATA_DIR / "sp500_shiller_clean.csv")),
+            "world_bank_clean": len(pd.read_csv(DATA_DIR / "world_bank_clean.csv")),
+            "gold_prices_clean": len(pd.read_csv(DATA_DIR / "gold_prices_clean.csv")),
+            "macro_stock_merged": len(pd.read_csv(DATA_DIR / "macro_stock_merged.csv")),
+        }
+        for table, expected_count in csv_row_counts.items():
+            actual_count = conn.execute(f'select count(*) from "{table}"').fetchone()[0]
+            require(
+                actual_count == expected_count,
+                f"SQLite table {table} has {actual_count} rows; expected {expected_count}",
+            )
+
+        raw_gdp_rows = len(json.loads((DATA_DIR / "world_bank_gdp_raw.json").read_text())[1])
+        raw_inflation_rows = len(
+            json.loads((DATA_DIR / "world_bank_inflation_raw.json").read_text())[1]
+        )
+        for table, expected_count in {
+            "world_bank_gdp_raw": raw_gdp_rows,
+            "world_bank_inflation_raw": raw_inflation_rows,
+        }.items():
+            actual_count = conn.execute(f'select count(*) from "{table}"').fetchone()[0]
+            iso_codes = {
+                row[0]
+                for row in conn.execute(
+                    f'select distinct countryiso3code from "{table}"'
+                ).fetchall()
+            }
+            require(
+                actual_count == expected_count,
+                f"SQLite table {table} has {actual_count} rows; expected {expected_count}",
+            )
+            require(iso_codes == {"USA"}, f"SQLite table {table} should contain USA raw rows only")
+
+
 def main() -> None:
     validate_sp500_clean()
     validate_world_bank_clean()
     validate_gold_clean()
     validate_macro_stock_merged()
+    validate_sqlite_store()
     print("All data output validation checks passed.")
 
 

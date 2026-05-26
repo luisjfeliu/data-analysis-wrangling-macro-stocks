@@ -51,7 +51,7 @@ We investigate the relationships between:
 │   ├── sp500_shiller_clean.csv          # Cleaned monthly S&P 500 dataset
 │   ├── world_bank_clean.csv             # Cleaned annual US GDP & inflation metrics
 │   ├── macro_stock_merged.csv           # Final combined annual dataset
-│   └── macro_stock_data.db              # SQLite database storing the cleaned tables
+│   └── macro_stock_data.db              # SQLite database storing raw, cleaned, and merged tables
 │
 └── images/                              # Visualization files (PNGs)
     ├── visual1_pe10_vs_gdp.png          # Shiller PE10 vs. Annual GDP Growth
