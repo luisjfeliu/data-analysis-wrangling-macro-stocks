@@ -1,0 +1,32 @@
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+bin/
+lib/
+include/
+share/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Submission packages / Archives
+*.zip
+*.tar.gz
+*.tgz
