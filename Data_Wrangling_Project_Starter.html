@@ -7827,8 +7827,8 @@ a.anchor-link {
 <li>The notebook first attempts the programmatic download/API steps, then uses the saved raw files as cache fallbacks if a live source is unavailable during review.</li>
 <li>The World Bank data is fetched directly for <code>country/USA</code>, not <code>country/all</code>, and is used as supplemental annual macro context for the merged analysis.</li>
 <li><code>GC=F</code> from Yahoo Finance is treated as a gold futures/proxy series, not physical spot gold.</li>
-<li>S&amp;P 500 <code>0.0</code> placeholders in dividend, earnings, real dividend, real earnings, and PE10 fields are converted to <code>NaN</code> before annual averaging.</li>
-<li>Validation enforces 2000-2023 coverage, with documented partial-year exceptions for S&amp;P 2023 and gold 2000. In 2023, the source contains placeholder values after September, so the cleaned data retains 9 valid months for price/CPI/rate/PE10 fields and 6 valid months for dividend/earnings fields.</li>
+<li>S&amp;P 500 <code>0.0</code> placeholders in unavailable-data fields are converted to <code>NaN</code> before annual averaging, including dividend, earnings, CPI, interest-rate, real-price, real-dividend, real-earnings, and PE10 fields.</li>
+<li>Validation enforces 2000-2023 coverage, with documented partial-year exceptions for S&amp;P 2023 and gold 2000. In 2023, the source contains placeholder values after September, so the cleaned data retains 9 valid months for price/CPI/rate/PE10 fields and 6 valid months for dividend/earnings fields; these counts are checked directly.</li>
 <li><code>sp500_annual_avg_yoy_change</code> and <code>gold_annual_avg_yoy_change</code> are year-over-year changes in annual average price levels, not true calendar-year total returns.</li>
 <li><code>cape_yield</code> is computed as <code>100 / PE10</code>, so it is a CAPE-yield proxy.</li>
 <li><code>cape_yield_minus_10y_yield</code> is a rough CAPE-yield minus 10-year yield spread, not a full expected equity risk premium model.</li>
@@ -7837,7 +7837,7 @@ a.anchor-link {
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7872,6 +7872,19 @@ a.anchor-link {
 <span class="n">pd</span><span class="o">.</span><span class="n">set_option</span><span class="p">(</span><span class="s2">"display.max_columns"</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>
 <span class="n">sns</span><span class="o">.</span><span class="n">set_theme</span><span class="p">(</span><span class="n">style</span><span class="o">=</span><span class="s2">"whitegrid"</span><span class="p">)</span>
 </pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
+<pre>Matplotlib is building the font cache; this may take a moment.
+</pre>
 </div>
 </div>
 </div>
@@ -8590,7 +8603,16 @@ Inflation raw data: (24, 8)
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Visual inspection: show rows where placeholder zeros appear in affected Shiller fields.</span>
-<span class="n">placeholder_zero_cols_assess</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"Dividend"</span><span class="p">,</span> <span class="s2">"Earnings"</span><span class="p">,</span> <span class="s2">"Real Dividend"</span><span class="p">,</span> <span class="s2">"Real Earnings"</span><span class="p">,</span> <span class="s2">"PE10"</span><span class="p">]</span>
+<span class="n">placeholder_zero_cols_assess</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">"Dividend"</span><span class="p">,</span>
+    <span class="s2">"Earnings"</span><span class="p">,</span>
+    <span class="s2">"Consumer Price Index"</span><span class="p">,</span>
+    <span class="s2">"Long Interest Rate"</span><span class="p">,</span>
+    <span class="s2">"Real Price"</span><span class="p">,</span>
+    <span class="s2">"Real Dividend"</span><span class="p">,</span>
+    <span class="s2">"Real Earnings"</span><span class="p">,</span>
+    <span class="s2">"PE10"</span><span class="p">,</span>
+<span class="p">]</span>
 <span class="n">df_sp500_placeholder_view</span> <span class="o">=</span> <span class="n">df_sp500_raw</span><span class="p">[[</span><span class="s2">"Date"</span><span class="p">,</span> <span class="o">*</span><span class="n">placeholder_zero_cols_assess</span><span class="p">]]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
 <span class="n">df_sp500_placeholder_view</span><span class="p">[</span><span class="s2">"Date"</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">df_sp500_placeholder_view</span><span class="p">[</span><span class="s2">"Date"</span><span class="p">],</span> <span class="n">errors</span><span class="o">=</span><span class="s2">"coerce"</span><span class="p">)</span>
 <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">placeholder_zero_cols_assess</span><span class="p">:</span>
@@ -8635,6 +8657,9 @@ Inflation raw data: (24, 8)
 <th>Date</th>
 <th>Dividend</th>
 <th>Earnings</th>
+<th>Consumer Price Index</th>
+<th>Long Interest Rate</th>
+<th>Real Price</th>
 <th>Real Dividend</th>
 <th>Real Earnings</th>
 <th>PE10</th>
@@ -8646,6 +8671,9 @@ Inflation raw data: (24, 8)
 <td>1871-01-01</td>
 <td>0.26</td>
 <td>0.4</td>
+<td>12.46</td>
+<td>5.32</td>
+<td>109.05</td>
 <td>6.39</td>
 <td>9.82</td>
 <td>0.00</td>
@@ -8655,6 +8683,9 @@ Inflation raw data: (24, 8)
 <td>1871-02-01</td>
 <td>0.26</td>
 <td>0.4</td>
+<td>12.84</td>
+<td>5.32</td>
+<td>107.25</td>
 <td>6.20</td>
 <td>9.53</td>
 <td>0.00</td>
@@ -8664,6 +8695,9 @@ Inflation raw data: (24, 8)
 <td>1871-03-01</td>
 <td>0.26</td>
 <td>0.4</td>
+<td>13.03</td>
+<td>5.33</td>
+<td>108.27</td>
 <td>6.11</td>
 <td>9.39</td>
 <td>0.00</td>
@@ -8673,6 +8707,9 @@ Inflation raw data: (24, 8)
 <td>1871-04-01</td>
 <td>0.26</td>
 <td>0.4</td>
+<td>12.56</td>
+<td>5.33</td>
+<td>115.54</td>
 <td>6.34</td>
 <td>9.75</td>
 <td>0.00</td>
@@ -8682,6 +8719,9 @@ Inflation raw data: (24, 8)
 <td>1871-05-01</td>
 <td>0.26</td>
 <td>0.4</td>
+<td>12.27</td>
+<td>5.33</td>
+<td>121.22</td>
 <td>6.48</td>
 <td>9.98</td>
 <td>0.00</td>
@@ -8691,6 +8731,9 @@ Inflation raw data: (24, 8)
 <td>1871-06-01</td>
 <td>0.26</td>
 <td>0.4</td>
+<td>12.08</td>
+<td>5.34</td>
+<td>122.11</td>
 <td>6.59</td>
 <td>10.13</td>
 <td>0.00</td>
@@ -8700,6 +8743,9 @@ Inflation raw data: (24, 8)
 <td>2023-07-01</td>
 <td>0.00</td>
 <td>0.0</td>
+<td>305.69</td>
+<td>3.90</td>
+<td>4514.51</td>
 <td>0.00</td>
 <td>0.00</td>
 <td>30.89</td>
@@ -8709,6 +8755,9 @@ Inflation raw data: (24, 8)
 <td>2023-08-01</td>
 <td>0.00</td>
 <td>0.0</td>
+<td>305.98</td>
+<td>4.17</td>
+<td>4459.48</td>
 <td>0.00</td>
 <td>0.00</td>
 <td>30.47</td>
@@ -8718,6 +8767,9 @@ Inflation raw data: (24, 8)
 <td>2023-09-01</td>
 <td>0.00</td>
 <td>0.0</td>
+<td>306.13</td>
+<td>4.09</td>
+<td>4515.77</td>
 <td>0.00</td>
 <td>0.00</td>
 <td>30.81</td>
@@ -8730,6 +8782,9 @@ Inflation raw data: (24, 8)
 <td>0.00</td>
 <td>0.00</td>
 <td>0.00</td>
+<td>0.00</td>
+<td>0.00</td>
+<td>0.00</td>
 </tr>
 <tr>
 <th>1834</th>
@@ -8739,12 +8794,18 @@ Inflation raw data: (24, 8)
 <td>0.00</td>
 <td>0.00</td>
 <td>0.00</td>
+<td>0.00</td>
+<td>0.00</td>
+<td>0.00</td>
 </tr>
 <tr>
 <th>1835</th>
 <td>2023-12-01</td>
 <td>0.00</td>
 <td>0.0</td>
+<td>0.00</td>
+<td>0.00</td>
+<td>0.00</td>
 <td>0.00</td>
 <td>0.00</td>
 <td>0.00</td>
@@ -8822,6 +8883,21 @@ Inflation raw data: (24, 8)
 <td>6</td>
 </tr>
 <tr>
+<th>Consumer Price Index</th>
+<td>32</td>
+<td>3</td>
+</tr>
+<tr>
+<th>Long Interest Rate</th>
+<td>32</td>
+<td>3</td>
+</tr>
+<tr>
+<th>Real Price</th>
+<td>32</td>
+<td>3</td>
+</tr>
+<tr>
 <th>Real Dividend</th>
 <td>35</td>
 <td>6</td>
@@ -8850,8 +8926,8 @@ Inflation raw data: (24, 8)
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<p><strong>Issue</strong>: In the S&amp;P 500 dataset, <code>PE10</code> contains exact <code>0.0</code> values in older periods and in the final three source rows for 2023. The 2023 <code>Dividend</code>, <code>Earnings</code>, <code>Real Dividend</code>, and <code>Real Earnings</code> fields also use <code>0.0</code> as unavailable-data placeholders for the final six source rows.</p>
-<p><strong>Justification for Cleaning</strong>: A PE10 ratio of 0.0 is economically impossible and represents a missing data placeholder (since CAPE requires 10 years of historical earnings). The same treatment is applied to the affected dividend and earnings fields in the analysis window so placeholder zeros do not bias annual averages. These values are replaced with <code>NaN</code> so they are correctly handled as missing; as a result, 2023 annual averages use the valid available months only.</p>
+<p><strong>Issue</strong>: In the S&amp;P 500 dataset, several fields use exact <code>0.0</code> values as unavailable-data placeholders. <code>PE10</code> contains <code>0.0</code> values in older periods and in the final three source rows for 2023. In the 2023 analysis window, <code>Consumer Price Index</code>, <code>Long Interest Rate</code>, <code>Real Price</code>, and <code>PE10</code> use <code>0.0</code> placeholders in the final three source rows, while <code>Dividend</code>, <code>Earnings</code>, <code>Real Dividend</code>, and <code>Real Earnings</code> use <code>0.0</code> placeholders in the final six source rows.</p>
+<p><strong>Justification for Cleaning</strong>: A PE10 ratio, CPI level, long-term interest rate, real price, dividend, or earnings value of <code>0.0</code> is not a plausible available observation for these Shiller fields in the analysis window; it indicates unavailable source data. These values are replaced with <code>NaN</code> so they are correctly handled as missing. Rows missing core analytical fields (<code>Date</code>, <code>SP500</code>, <code>Consumer Price Index</code>, <code>Long Interest Rate</code>, and <code>PE10</code>) are dropped, while dividend and earnings annual averages still use the valid available months only.</p>
 <p><strong>Justification for Assessment Methods</strong>:</p>
 <ul>
 <li><em>Visual Assessment (sample rows with any affected <code>0.0</code> placeholder)</em>: Suitable because it displays representative raw rows where the placeholder pattern appears, including the early historical <code>PE10</code> placeholders and the 2023 analysis-window placeholders.</li>
@@ -9323,6 +9399,7 @@ Gold observations in first analysis year: 84
     <span class="s2">"Earnings"</span><span class="p">,</span>
     <span class="s2">"Consumer Price Index"</span><span class="p">,</span>
     <span class="s2">"Long Interest Rate"</span><span class="p">,</span>
+    <span class="s2">"Real Price"</span><span class="p">,</span>
     <span class="s2">"Real Dividend"</span><span class="p">,</span>
     <span class="s2">"Real Earnings"</span><span class="p">,</span>
     <span class="s2">"PE10"</span><span class="p">,</span>
@@ -9331,7 +9408,16 @@ Gold observations in first analysis year: 84
     <span class="n">df_sp500_clean</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_numeric</span><span class="p">(</span><span class="n">df_sp500_clean</span><span class="p">[</span><span class="n">col</span><span class="p">],</span> <span class="n">errors</span><span class="o">=</span><span class="s1">'coerce'</span><span class="p">)</span>
 
 <span class="c1"># Replace 0.0 placeholders with NaN in affected Shiller fields</span>
-<span class="n">placeholder_zero_cols</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"Dividend"</span><span class="p">,</span> <span class="s2">"Earnings"</span><span class="p">,</span> <span class="s2">"Real Dividend"</span><span class="p">,</span> <span class="s2">"Real Earnings"</span><span class="p">,</span> <span class="s2">"PE10"</span><span class="p">]</span>
+<span class="n">placeholder_zero_cols</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">"Dividend"</span><span class="p">,</span>
+    <span class="s2">"Earnings"</span><span class="p">,</span>
+    <span class="s2">"Consumer Price Index"</span><span class="p">,</span>
+    <span class="s2">"Long Interest Rate"</span><span class="p">,</span>
+    <span class="s2">"Real Price"</span><span class="p">,</span>
+    <span class="s2">"Real Dividend"</span><span class="p">,</span>
+    <span class="s2">"Real Earnings"</span><span class="p">,</span>
+    <span class="s2">"PE10"</span><span class="p">,</span>
+<span class="p">]</span>
 <span class="n">df_sp500_clean</span><span class="p">[</span><span class="n">placeholder_zero_cols</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_sp500_clean</span><span class="p">[</span><span class="n">placeholder_zero_cols</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
 
 <span class="c1"># Filter by analysis window (2000-2023) and keep valid rows for core analytical fields</span>
@@ -9368,9 +9454,21 @@ Gold observations in first analysis year: 84
 
 <span class="n">sp500_valid_counts</span> <span class="o">=</span> <span class="p">(</span>
     <span class="n">df_sp500_clean</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">Year</span><span class="o">=</span><span class="n">df_sp500_clean</span><span class="p">[</span><span class="s2">"Date"</span><span class="p">]</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">year</span><span class="p">)</span>
-    <span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s2">"Year"</span><span class="p">)[[</span><span class="s2">"SP500"</span><span class="p">,</span> <span class="s2">"Dividend"</span><span class="p">,</span> <span class="s2">"Earnings"</span><span class="p">,</span> <span class="s2">"Consumer Price Index"</span><span class="p">,</span> <span class="s2">"Long Interest Rate"</span><span class="p">,</span> <span class="s2">"PE10"</span><span class="p">]]</span>
+    <span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s2">"Year"</span><span class="p">)[[</span><span class="s2">"SP500"</span><span class="p">,</span> <span class="s2">"Dividend"</span><span class="p">,</span> <span class="s2">"Earnings"</span><span class="p">,</span> <span class="s2">"Consumer Price Index"</span><span class="p">,</span> <span class="s2">"Long Interest Rate"</span><span class="p">,</span> <span class="s2">"Real Price"</span><span class="p">,</span> <span class="s2">"Real Dividend"</span><span class="p">,</span> <span class="s2">"Real Earnings"</span><span class="p">,</span> <span class="s2">"PE10"</span><span class="p">]]</span>
     <span class="o">.</span><span class="n">count</span><span class="p">()</span>
 <span class="p">)</span>
+<span class="n">expected_2023_counts</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">"SP500"</span><span class="p">:</span> <span class="mi">9</span><span class="p">,</span>
+    <span class="s2">"Dividend"</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span>
+    <span class="s2">"Earnings"</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span>
+    <span class="s2">"Consumer Price Index"</span><span class="p">:</span> <span class="mi">9</span><span class="p">,</span>
+    <span class="s2">"Long Interest Rate"</span><span class="p">:</span> <span class="mi">9</span><span class="p">,</span>
+    <span class="s2">"Real Price"</span><span class="p">:</span> <span class="mi">9</span><span class="p">,</span>
+    <span class="s2">"Real Dividend"</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span>
+    <span class="s2">"Real Earnings"</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span>
+    <span class="s2">"PE10"</span><span class="p">:</span> <span class="mi">9</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="k">assert</span> <span class="n">sp500_valid_counts</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">END_YEAR</span><span class="p">]</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span> <span class="o">==</span> <span class="n">expected_2023_counts</span>
 <span class="nb">print</span><span class="p">(</span><span class="s2">"2023 non-null monthly counts after cleaning:"</span><span class="p">)</span>
 <span class="n">display</span><span class="p">(</span><span class="n">sp500_valid_counts</span><span class="o">.</span><span class="n">loc</span><span class="p">[[</span><span class="n">END_YEAR</span><span class="p">]])</span>
 </pre></div>
@@ -9417,10 +9515,16 @@ Min Year: 2000 Max Year: 2023
 <th>Earnings</th>
 <th>Consumer Price Index</th>
 <th>Long Interest Rate</th>
+<th>Real Price</th>
+<th>Real Dividend</th>
+<th>Real Earnings</th>
 <th>PE10</th>
 </tr>
 <tr>
 <th>Year</th>
+<th></th>
+<th></th>
+<th></th>
 <th></th>
 <th></th>
 <th></th>
@@ -9438,6 +9542,9 @@ Min Year: 2000 Max Year: 2023
 <td>9</td>
 <td>9</td>
 <td>9</td>
+<td>6</td>
+<td>6</td>
+<td>9</td>
 </tr>
 </tbody>
 </table>
@@ -9453,7 +9560,7 @@ Min Year: 2000 Max Year: 2023
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<p>Justification: Replacing 0.0 placeholders in <code>PE10</code>, dividend, and earnings fields with <code>NaN</code> ensures unavailable values are treated as missing, preventing incorrect statistical summaries and biased annual averages. Limiting the dates to 2000-2023 aligns the data with our research window. The 2023 validation counts document that the final year is partial after cleaning: 9 valid months remain for the core price/CPI/rate/PE10 fields, while dividend and earnings averages use the 6 months with available values.</p>
+<p>Justification: Replacing 0.0 placeholders in <code>PE10</code>, CPI, interest-rate, real-price, dividend, and earnings fields with <code>NaN</code> ensures unavailable values are treated as missing, preventing incorrect statistical summaries and biased annual averages. Limiting the dates to 2000-2023 aligns the data with our research window. The 2023 validation counts document that the final year is partial after cleaning: 9 valid months remain for the core price/CPI/rate/PE10 fields, while dividend and earnings averages use the 6 months with available values.</p>
 </div>
 </div>
 </div>

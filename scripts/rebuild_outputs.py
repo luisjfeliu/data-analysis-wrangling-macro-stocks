@@ -5,9 +5,10 @@ issues found during review:
 
 1. Fetch World Bank data directly for USA instead of country/all.
 2. Validate every annual merge with validate='one_to_one'.
-3. Rename ambiguous engineered columns so they describe the actual calculation.
-4. Store current raw, cleaned, and merged tables in SQLite.
-5. Keep regenerated figures aligned with the executed notebook.
+3. Treat all known Shiller 0.0 unavailable-data placeholders as missing.
+4. Rename ambiguous engineered columns so they describe the actual calculation.
+5. Store current raw, cleaned, and merged tables in SQLite.
+6. Keep regenerated figures aligned with the executed notebook.
 """
 
 
@@ -157,7 +158,16 @@ def load_sp500() -> pd.DataFrame:
     for col in numeric_cols:
         df[col] = pd.to_numeric(df[col], errors="coerce")
 
-    placeholder_zero_cols = ["Dividend", "Earnings", "Real Dividend", "Real Earnings", "PE10"]
+    placeholder_zero_cols = [
+        "Dividend",
+        "Earnings",
+        "Consumer Price Index",
+        "Long Interest Rate",
+        "Real Price",
+        "Real Dividend",
+        "Real Earnings",
+        "PE10",
+    ]
     df[placeholder_zero_cols] = df[placeholder_zero_cols].replace(0, np.nan)
     df = df[df["Date"].dt.year.between(START_YEAR, END_YEAR)].copy()
     required = [

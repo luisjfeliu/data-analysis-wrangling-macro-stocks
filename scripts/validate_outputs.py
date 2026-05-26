@@ -23,6 +23,17 @@ SP500_MIN_MONTHS_BY_YEAR = {END_YEAR: 9}
 GOLD_MIN_DAYS_BY_YEAR = {START_YEAR: 80}
 DEFAULT_SP500_MIN_MONTHS = 12
 DEFAULT_GOLD_MIN_DAYS = 200
+SP500_EXPECTED_2023_NON_NULL_COUNTS = {
+    "SP500": 9,
+    "Dividend": 6,
+    "Earnings": 6,
+    "Consumer Price Index": 9,
+    "Long Interest Rate": 9,
+    "Real Price": 9,
+    "Real Dividend": 6,
+    "Real Earnings": 6,
+    "PE10": 9,
+}
 
 
 def require(condition: bool, message: str) -> None:
@@ -120,6 +131,7 @@ def validate_sp500_clean() -> None:
         "Earnings",
         "Consumer Price Index",
         "Long Interest Rate",
+        "Real Price",
         "Real Dividend",
         "Real Earnings",
         "PE10",
@@ -137,15 +149,33 @@ def validate_sp500_clean() -> None:
         min_count_by_year=SP500_MIN_MONTHS_BY_YEAR,
     )
 
-    key_numeric_cols = ["SP500", "Consumer Price Index", "Long Interest Rate", "PE10"]
+    key_numeric_cols = ["SP500", "Consumer Price Index", "Long Interest Rate", "Real Price", "PE10"]
     for col in key_numeric_cols + ["Dividend", "Earnings", "Real Dividend", "Real Earnings"]:
         df[col] = pd.to_numeric(df[col], errors="coerce")
     require(df[key_numeric_cols].notna().all().all(), "S&P 500 clean file has missing key values")
 
-    placeholder_cols = ["Dividend", "Earnings", "Real Dividend", "Real Earnings", "PE10"]
+    placeholder_cols = [
+        "Dividend",
+        "Earnings",
+        "Consumer Price Index",
+        "Long Interest Rate",
+        "Real Price",
+        "Real Dividend",
+        "Real Earnings",
+        "PE10",
+    ]
     require(
         not (df[placeholder_cols] == 0).any().any(),
         "S&P 500 clean file still contains zero placeholders",
+    )
+    df_2023 = df[df["Date"].dt.year == END_YEAR]
+    actual_counts = df_2023[list(SP500_EXPECTED_2023_NON_NULL_COUNTS)].count().to_dict()
+    require(
+        actual_counts == SP500_EXPECTED_2023_NON_NULL_COUNTS,
+        (
+            "S&P 500 clean file has unexpected 2023 non-null counts: "
+            f"{actual_counts}; expected {SP500_EXPECTED_2023_NON_NULL_COUNTS}"
+        ),
     )
 
 
