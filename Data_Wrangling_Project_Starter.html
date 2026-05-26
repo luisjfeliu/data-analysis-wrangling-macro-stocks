@@ -7825,7 +7825,7 @@ a.anchor-link {
 <h3 id="Important-interpretation-notes:">Important interpretation notes:<a class="anchor-link" href="#Important-interpretation-notes:">¶</a></h3><ul>
 <li>The S&amp;P 500/Shiller CSV and Yahoo Finance gold futures/proxy series are the two rubric-qualifying raw datasets with more than 500 observations each.</li>
 <li>The notebook first attempts the programmatic download/API steps, then uses the saved raw files as cache fallbacks if a live source is unavailable during review.</li>
-<li>The World Bank data is fetched directly for <code>country/USA</code>, not <code>country/all</code>, and is used as supplemental annual macro context for the merged analysis.</li>
+<li>The World Bank data is fetched directly for <code>country/USA</code>, not <code>country/all</code>, and is used as supplemental annual macro context for the merged analysis; it is not counted as one of the two &gt;500-observation rubric-qualifying datasets.</li>
 <li><code>GC=F</code> from Yahoo Finance is treated as a gold futures/proxy series, not physical spot gold.</li>
 <li>S&amp;P 500 <code>0.0</code> placeholders in unavailable-data fields are converted to <code>NaN</code> before annual averaging, including dividend, earnings, CPI, interest-rate, real-price, real-dividend, real-earnings, and PE10 fields.</li>
 <li>Validation enforces 2000-2023 coverage, with documented partial-year exceptions for S&amp;P 2023 and gold 2000. In 2023, the source contains placeholder values after September, so the cleaned data retains 9 valid months for price/CPI/rate/PE10 fields and 6 valid months for dividend/earnings fields; these counts are checked directly.</li>
@@ -8242,7 +8242,7 @@ a.anchor-link {
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
 <h4 id="Supplemental-Dataset:-World-Bank-U.S.-Macroeconomic-Indicators"><strong>Supplemental Dataset: World Bank U.S. Macroeconomic Indicators</strong><a class="anchor-link" href="#Supplemental-Dataset:-World-Bank-U.S.-Macroeconomic-Indicators">¶</a></h4><p>Type: JSON API Response</p>
 <p>Method: Accessing the World Bank Indicators API</p>
-<p><strong>Why this source was included</strong>: We use the World Bank Indicators API because it is an authoritative source for standardized annual U.S. macroeconomic indicators, specifically GDP growth and CPI inflation. This source is included as supplemental annual macroeconomic context for the research question, while the two rubric-qualifying raw datasets with more than 500 observations are the S&amp;P 500/Shiller CSV and Yahoo Finance gold futures/proxy series. Accessing this data programmatically also documents the API-gathering method used to add official macroeconomic variables to the final merged dataset.</p>
+<p><strong>Why this source was included</strong>: We use the World Bank Indicators API because it is an authoritative source for standardized annual U.S. macroeconomic indicators, specifically GDP growth and CPI inflation. This source is included as supplemental annual macroeconomic context for the research question; it is not counted as one of the two &gt;500-observation rubric-qualifying datasets. The two rubric-qualifying raw datasets are the S&amp;P 500/Shiller CSV and Yahoo Finance gold futures/proxy series. Accessing this data programmatically also documents the API-gathering method used to add official macroeconomic variables to the final merged dataset.</p>
 <p>Dataset variables and significance:</p>
 <ul>
 <li><code>country</code>: Dictionary containing country code and name, used to verify regional and national boundaries.</li>
@@ -9976,6 +9976,7 @@ Gold price range: 255.10000610351562 to 2081.89990234375
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
 <h3 id="Remove-unnecessary-variables-and-combine-datasets"><strong>Remove unnecessary variables and combine datasets</strong><a class="anchor-link" href="#Remove-unnecessary-variables-and-combine-datasets">¶</a></h3><p>Depending on the datasets, you can also perform the combination before the cleaning steps.</p>
+<p>For the final merged dataset, unnecessary variables are removed by selecting only fields needed for the research question: annual S&amp;P 500 valuation/yield fields, U.S. GDP growth and inflation, and annual gold close/volume summaries. Raw gold OHLC fields, raw World Bank API metadata, nested API dictionaries, and intermediate real-price Shiller fields are retained in the raw/cleaned source files but excluded from the final analysis table to keep the combined dataset focused and interpretable.</p>
 </div>
 </div>
 </div>
@@ -10411,7 +10412,7 @@ Inflation has a positive but modest relationship with the 10-year Treasury bond 
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h3 id="5.2:-Reflection"><strong>5.2:</strong> Reflection<a class="anchor-link" href="#5.2:-Reflection">¶</a></h3><p>Given more time to complete this project, we would implement the following improvements:</p>
+<h3 id="5.2:-Reflection"><strong>5.2:</strong> Reflection<a class="anchor-link" href="#5.2:-Reflection">¶</a></h3>
 </div>
 </div>
 </div>
@@ -10422,10 +10423,7 @@ Inflation has a positive but modest relationship with the 10-year Treasury bond 
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<ul>
-<li>collect higher-frequency monthly macroeconomic data to expand the number of observations and perform a formal cross-correlation or Granger-causality test for lead-lag dynamics.</li>
-<li>evaluate the correlation of asset prices with the Federal Funds rate to capture the influence of monetary policy and incorporate a physical spot-gold benchmark to better measure its effectiveness as an inflation hedge.</li>
-</ul>
+<p>Given more time to complete this project, we would collect higher-frequency monthly macroeconomic data to expand the number of observations and perform a formal cross-correlation or Granger-causality test for lead-lag dynamics. We would also evaluate the correlation of asset prices with the Federal Funds rate to capture the influence of monetary policy and incorporate a physical spot-gold benchmark to better measure its effectiveness as an inflation hedge.</p>
 </div>
 </div>
 </div>
