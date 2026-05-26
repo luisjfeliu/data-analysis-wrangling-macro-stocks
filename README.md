@@ -32,7 +32,7 @@ We investigate the relationships between:
 ├── LICENSE                              # MIT License
 ├── README.md                            # Project documentation
 ├── requirements.txt                     # Python dependencies for the notebook and validation script
-├── Data_Wrangling_Project_Starter.ipynb # Thin notebook wrapper around the corrected pipeline script
+├── Data_Wrangling_Project_Starter.ipynb # Full restored data-wrangling notebook
 ├── Data_Wrangling_Project_Starter.html  # Exported HTML version of the prior executed notebook
 │
 ├── scripts/
@@ -82,16 +82,16 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Run the corrected pipeline:
-
-```bash
-python scripts/rebuild_outputs.py
-```
-
-Open the notebook wrapper using Jupyter:
+Open the restored full notebook using Jupyter:
 
 ```bash
 jupyter notebook Data_Wrangling_Project_Starter.ipynb
+```
+
+You can also rebuild the committed outputs with the script:
+
+```bash
+python scripts/rebuild_outputs.py
 ```
 
 Run the validation checks:
