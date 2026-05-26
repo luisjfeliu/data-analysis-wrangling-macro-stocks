@@ -8005,16 +8005,17 @@ We investigate the relationships between US economic growth and inflation levels
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
 <h4 id="Dataset-1:-S&amp;P-500-Historical-Shiller-Dataset"><strong>Dataset 1: S&amp;P 500 Historical Shiller Dataset</strong><a class="anchor-link" href="#Dataset-1:-S&amp;P-500-Historical-Shiller-Dataset">¶</a></h4><p>Type: CSV File</p>
-<p>Method: Programmatic downloading from a public GitHub repository.</p>
-<p>Dataset variables:</p>
+<p>Method: Programmatically downloaded from GitHub</p>
+<p><strong>Why this dataset was picked</strong>: We selected the historical S&amp;P 500 Shiller dataset because it provides a comprehensive monthly timeline of U.S. stock market valuations, dividends, and interest rates spanning over a century. This long-term dataset is essential for identifying patterns across historical economic expansions, recessions, and inflation regimes. The gathering method involves programmatically downloading a static CSV file from a reliable GitHub repository to ensure reproducibility and ease of loading.</p>
+<p>Dataset variables and significance:</p>
 <ul>
-<li><code>Date</code>: Monthly date of the observation (e.g., 2000-01-01)</li>
-<li><code>SP500</code>: Monthly nominal price level of the S&amp;P 500 index</li>
-<li><code>Dividend</code>: Nominal dividend per share</li>
-<li><code>Earnings</code>: Nominal earnings per share</li>
-<li><code>Consumer Price Index</code>: Monthly CPI inflation index level</li>
-<li><code>Long Interest Rate</code>: 10-year U.S. Treasury yield proxy (%)</li>
-<li><code>PE10</code>: Shiller's Cyclically Adjusted Price-to-Earnings (CAPE) ratio</li>
+<li><code>Date</code>: Month of observation (string, format <code>YYYY-MM-DD</code>), used as the temporal index for aligning macroeconomic indicators.</li>
+<li><code>SP500</code>: Nominal close value of the S&amp;P 500 index (float), representing the benchmark U.S. equity market level.</li>
+<li><code>Dividend</code>: S&amp;P 500 dividend value (float), reflecting cash payouts to investors and yield trends.</li>
+<li><code>Earnings</code>: S&amp;P 500 earnings (float), representing the fundamental profitability of corporate America.</li>
+<li><code>Consumer Price Index</code>: US consumer price index basis (float), used to compute real prices and adjust for inflation.</li>
+<li><code>Long Interest Rate</code>: US 10-year Treasury bond yield (float), representing the risk-free rate and serving as a proxy for long-term interest rates.</li>
+<li><code>PE10</code>: Shiller Cyclically Adjusted Price-to-Earnings ratio (float), a valuation metric measuring stock market price relative to 10-year average inflation-adjusted earnings.</li>
 </ul>
 </div>
 </div>
@@ -8167,13 +8168,15 @@ We investigate the relationships between US economic growth and inflation levels
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h4 id="Dataset-2:-World-Bank-U.S.-Macroeconomic-Indicators"><strong>Dataset 2: World Bank U.S. Macroeconomic Indicators</strong><a class="anchor-link" href="#Dataset-2:-World-Bank-U.S.-Macroeconomic-Indicators">¶</a></h4><p>Type: JSON File / API response</p>
-<p>Method: Gathered by accessing the World Bank Indicators API via the requests library.</p>
-<p>Dataset variables:</p>
+<h4 id="Dataset-2:-World-Bank-U.S.-Macroeconomic-Indicators"><strong>Dataset 2: World Bank U.S. Macroeconomic Indicators</strong><a class="anchor-link" href="#Dataset-2:-World-Bank-U.S.-Macroeconomic-Indicators">¶</a></h4><p>Type: JSON API Response</p>
+<p>Method: Accessing the World Bank Indicators API</p>
+<p><strong>Why this dataset was picked</strong>: We selected the World Bank Indicators API because it is the authoritative source for international macroeconomic indicators, specifically annual GDP growth and CPI inflation rates. Accessing this data programmatically allows us to retrieve official U.S. macroeconomic records for comparison against equity market valuations. The gathering method uses HTTP requests to fetch JSON data from the World Bank API, ensuring we get the latest standardized macroeconomic values.</p>
+<p>Dataset variables and significance:</p>
 <ul>
-<li><code>gdp_growth</code>: Annual GDP growth rate (%) for the United States (<code>NY.GDP.MKTP.KD.ZG</code>)</li>
-<li><code>inflation_rate</code>: Annual consumer price inflation rate (%) for the United States (<code>FP.CPI.TOTL.ZG</code>)</li>
-<li><code>date</code>: Calendar year of the observation (e.g., 2000)</li>
+<li><code>country</code>: Dictionary containing country code and name, used to verify regional and national boundaries.</li>
+<li><code>countryiso3code</code>: Three-letter ISO country code (string), crucial for filtering out non-country records and merging indicators.</li>
+<li><code>date</code>: Year of observation (string), representing the annual period for macroeconomic reporting.</li>
+<li><code>value</code>: The indicator percentage value (float), representing the annual GDP growth rate (%) or the annual consumer price inflation rate (%).</li>
 </ul>
 </div>
 </div>
@@ -8318,13 +8321,17 @@ Inflation raw data: (24, 8)
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h4 id="Dataset-3:-Yahoo-Finance-Gold-Futures-Price-Proxy"><strong>Dataset 3: Yahoo Finance Gold Futures Price Proxy</strong><a class="anchor-link" href="#Dataset-3:-Yahoo-Finance-Gold-Futures-Price-Proxy">¶</a></h4><p>Type: API / DataFrame (Yahoo Finance via yfinance package)</p>
-<p>Method: Gathered by accessing the Yahoo Finance API programmatically using the yfinance library.</p>
-<p>Dataset variables:</p>
+<h4 id="Dataset-3:-Yahoo-Finance-Gold-Futures-Price-Proxy"><strong>Dataset 3: Yahoo Finance Gold Futures Price Proxy</strong><a class="anchor-link" href="#Dataset-3:-Yahoo-Finance-Gold-Futures-Price-Proxy">¶</a></h4><p>Type: CSV / API programmatic download via <code>yfinance</code> library</p>
+<p>Method: API programmatic download of historical Gold spot prices (<code>GC=F</code>)</p>
+<p><strong>Why this dataset was picked</strong>: We selected the daily Gold spot price dataset because gold has historically been viewed as a safe-haven asset and a hedge against high inflation. Including gold prices allows us to compare stock market returns with a traditional commodity asset under different macroeconomic and inflation regimes. The gathering method uses the <code>yfinance</code> API to programmatically download daily transaction-level records, providing a high-fidelity time series of gold's market movements.</p>
+<p>Dataset variables and significance:</p>
 <ul>
-<li><code>Date</code>: Calendar date of daily prices (e.g., 2000-08-30)</li>
-<li><code>Close</code>: Daily closing price of the GC=F ticker proxy ($)</li>
-<li><code>Volume</code>: Daily trading volume of gold futures contract proxy</li>
+<li><code>Date</code>: Observation date (datetime index), representing the daily trading timeline for the asset.</li>
+<li><code>Open</code>: Opening price for the day (float), indicating the price at market open.</li>
+<li><code>High</code>: High price for the day (float), the maximum price reached during trading.</li>
+<li><code>Low</code>: Low price for the day (float), the minimum price reached during trading.</li>
+<li><code>Close</code>: Closing price for the day (float), the primary price metric used for returns and asset valuations.</li>
+<li><code>Volume</code>: Volume of transactions (float), indicating market liquidity and trading activity for the day.</li>
 </ul>
 </div>
 </div>
@@ -8625,7 +8632,13 @@ Inflation raw data: (24, 8)
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<p>Issue and justification: The Cyclically Adjusted Price-to-Earnings ratio (<code>PE10</code>) column contains <code>0.0</code> values for dates prior to 1881. A PE10 ratio of 0.0 is economically impossible and represents a missing data placeholder (since CAPE requires 10 years of historical earnings). Leaving these 0.0 values in place would distort average and regression calculations. They must be replaced with <code>NaN</code> so they are correctly handled as missing.</p>
+<p><strong>Issue</strong>: In the S&amp;P 500 dataset, the variables <code>PE10</code> contain exact <code>0.0</code> values for older periods (e.g. prior to 1881).</p>
+<p><strong>Justification for Cleaning</strong>: A PE10 ratio of 0.0 is economically impossible and represents a missing data placeholder (since CAPE requires 10 years of historical earnings). Leaving these 0.0 values in place would distort average and regression calculations. They must be replaced with <code>NaN</code> so they are correctly handled as missing.</p>
+<p><strong>Justification for Assessment Methods</strong>:</p>
+<ul>
+<li><em>Visual Assessment (<code>.head(10)</code>)</em>: Suitable because it displays early historical records chronologically, enabling us to spot the first occurrence and extent of the <code>0.0</code> placeholders.</li>
+<li><em>Programmatic Assessment (exact <code>0.0</code> check)</em>: Suitable because it systematically scans every row in the dataset and returns the exact count of invalid zero values, confirming that this is a systematic data entry issue across the columns.</li>
+</ul>
 </div>
 </div>
 </div>
@@ -8705,7 +8718,13 @@ Length: 1, dtype: str
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<p>Issue and justification: In the raw World Bank dataset, the ISO country code field <code>countryiso3code</code> has empty string values representing missing data, and text entries can have leading/trailing whitespaces. For correct filtering and reliable merging of datasets, empty string indicators should be cast to proper Pandas nullable string types or <code>NaN</code>, and whitespaces should be stripped.</p>
+<p><strong>Issue</strong>: In the raw World Bank dataset, the ISO country code field <code>countryiso3code</code> has empty string values representing missing data, and text entries can have leading/trailing whitespaces.</p>
+<p><strong>Justification for Cleaning</strong>: For correct filtering and reliable merging of datasets, empty string indicators should be cast to proper Pandas nullable string types or <code>NaN</code>, and whitespaces should be stripped.</p>
+<p><strong>Justification for Assessment Methods</strong>:</p>
+<ul>
+<li><em>Visual Assessment (<code>unique()[:5]</code>)</em>: Suitable because it extracts a subset of unique country values, making it easy to visually identify formatting inconsistencies like whitespaces or empty strings in codes.</li>
+<li><em>Programmatic Assessment (missing/empty check)</em>: Suitable because it scans the entire dataset to compute the exact counts of null values and empty or whitespace-only strings, confirming the presence and extent of these anomalies.</li>
+</ul>
 </div>
 </div>
 </div>
@@ -8838,7 +8857,13 @@ Length: 1, dtype: str
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<p>Issue and justification: The raw World Bank indicator response contains nested dictionaries in the <code>country</code> column (e.g. <code>{'id': 'US', 'value': 'United States'}</code>). Tidy data guidelines state that each column must contain a single variable. A column storing a dictionary violates this principle. We need to flatten and extract the <code>country_name</code> and <code>countryiso3code</code> variables into separate, distinct columns.</p>
+<p><strong>Issue</strong>: The columns <code>country</code> and <code>indicator</code> contain nested dictionaries (e.g. <code>{'id': 'USA', 'value': 'United States'}</code>) rather than a single atomic value.</p>
+<p><strong>Justification for Cleaning</strong>: Tidy data rules require that each cell contains a single, atomic value. Storing nested dictionaries makes it impossible to directly filter, sort, group, or merge the datasets on these columns without writing custom extraction functions. They must be flattened into individual columns like <code>country_name</code> and <code>indicator_name</code>.</p>
+<p><strong>Justification for Assessment Methods</strong>:</p>
+<ul>
+<li><em>Visual Assessment (<code>.head()</code>)</em>: Suitable because displaying the tabular structure of the dataframe instantly reveals that the cell contents are formatted as dictionaries (JSON objects) rather than flat strings.</li>
+<li><em>Programmatic Assessment (<code>type()</code> check)</em>: Suitable because it checks the exact datatype of the cell values programmatically, confirming that they are dictionary objects rather than strings or primitives.</li>
+</ul>
 </div>
 </div>
 </div>
@@ -8916,7 +8941,13 @@ Length: 1, dtype: str
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<p>Issue and justification: The daily gold price DataFrame downloaded via yfinance has a MultiIndex column structure (e.g., tuple column names like <code>('Close', 'GC=F')</code>), and the names of critical columns are not standardized. MultiIndex column headers make indexing, slicing, and merging very error-prone and violate tidy principles where each column represents a single variable with a simple, standard name. We need to flatten the columns and rename the primary date, close, and volume columns to standardized names.</p>
+<p><strong>Issue</strong>: The daily gold price DataFrame downloaded via yfinance has a MultiIndex column structure (e.g., tuple column names like <code>('Close', 'GC=F')</code>), and the names of critical columns are not standardized.</p>
+<p><strong>Justification for Cleaning</strong>: MultiIndex column headers make indexing, slicing, and merging very error-prone and violate tidy principles where each column represents a single variable with a simple, standard name. We need to flatten the columns and rename the primary date, close, and volume columns to standardized names.</p>
+<p><strong>Justification for Assessment Methods</strong>:</p>
+<ul>
+<li><em>Visual Assessment (printing raw headers)</em>: Suitable because displaying the list of columns directly shows the presence of tuples and MultiIndex structure in the header representation.</li>
+<li><em>Programmatic Assessment (MultiIndex type check)</em>: Suitable because checking if the columns index is an instance of <code>pd.MultiIndex</code> programmatically verifies the column indexing scheme.</li>
+</ul>
 </div>
 </div>
 </div>
