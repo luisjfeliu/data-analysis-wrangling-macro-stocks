@@ -1,0 +1,2 @@
+# Exclude generated HTML reports from GitHub language statistics.
+/Data_Wrangling_Project_Starter.html linguist-generated=true
